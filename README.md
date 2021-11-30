@@ -1,6 +1,5 @@
 # Requirements
-Node v14.8  
-npm
+**This repo is based on [tatupesonen/aoc-typescript-starter](https://github.com/tatupesonen/aoc-typescript-starter)**
 
 ## Setup
 ```
