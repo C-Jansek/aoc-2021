@@ -1,6 +1,13 @@
 module.exports = {
-    plugins: ['sonarjs', 'unicorn'],
-    extends: ['google', 'plugin:sonarjs/recommended', 'plugin:unicorn/recommended'],
+    parser: '@typescript-eslint/parser',
+    plugins: ['@typescript-eslint', 'sonarjs', 'unicorn'],
+    extends: [
+        'plugin:@typescript-eslint/eslint-recommended',
+        'plugin:@typescript-eslint/recommended',
+        'google',
+        'plugin:sonarjs/recommended',
+        'plugin:unicorn/recommended',
+    ],
     parserOptions: {
         ecmaVersion: 12,
     },
@@ -9,7 +16,7 @@ module.exports = {
         es6: true,
     },
     rules: {
-        indent: ['error', 4],
+        'indent': ['error', 4],
         'max-len': [
             'error',
             100,
@@ -20,7 +27,6 @@ module.exports = {
         'object-curly-spacing': ['error', 'always'],
         'linebreak-style': 'off',
         'brace-style': ['error', 'stroustrup'],
-        'operator-linebreak': ['error', 'before'],
         'require-jsdoc': [
             'error',
             {
@@ -31,6 +37,7 @@ module.exports = {
         ],
         'unicorn/no-null': 'off',
         'unicorn/prefer-module': 'off',
+        'unicorn/no-array-reduce': 'off',
         'no-undefined': 'error',
         'unicorn/prefer-default-parameters': 'off',
     },
