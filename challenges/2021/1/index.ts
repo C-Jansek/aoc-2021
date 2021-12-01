@@ -1,27 +1,27 @@
 import getInput from '../../../utils/getInput';
 
 const part1 = () => {
-    let depths = getInput('2021', '1')
+    const depths = getInput('2021', '1')
         .split('\n')
         .map((depth) => Number(depth));
 
     return depths
-        .map((cur, i, allDepths) => allDepths[i] > allDepths[i - 1])
-        .reduce((acc, cur) => acc + Number(cur), 0);
+        .map((current, index, allDepths) => allDepths[index] > allDepths[index - 1])
+        .reduce((accumulator, current) => accumulator + Number(current), 0);
 };
 
 const part2 = () => {
-    let depths = getInput('2021', '1')
+    const depths = getInput('2021', '1')
         .split('\n')
         .map((depth) => Number(depth));
 
     return depths
         .map(
-            (cur, i, allDepths) =>
-                allDepths[i - 2] + allDepths[i - 1] + allDepths[i] >
-                allDepths[i - 3] + allDepths[i - 2] + allDepths[i - 1]
+            (current, index, allDepths) =>
+                allDepths[index - 2] + allDepths[index - 1] + allDepths[index] >
+                allDepths[index - 3] + allDepths[index - 2] + allDepths[index - 1],
         )
-        .reduce((acc, cur) => acc + Number(cur), 0);
+        .reduce((accumulator, current) => accumulator + Number(current), 0);
 };
 
 console.log(`Solution 1: ${part1()}`);
