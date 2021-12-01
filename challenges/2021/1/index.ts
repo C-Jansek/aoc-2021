@@ -5,16 +5,9 @@ const part1 = () => {
         .split('\n')
         .map((depth) => Number(depth));
 
-    console.log(depths.length);
-
-    let prevDepth = depths[0];
-    depths = depths.slice(1);
-    let count = 0;
-    for (const depth of depths) {
-        if (depth > prevDepth) count++;
-        prevDepth = depth;
-    }
-    return count;
+    return depths
+        .map((cur, i, allDepths) => allDepths[i] > allDepths[i - 1])
+        .reduce((acc, cur) => acc + Number(cur), 0);
 };
 
 const part2 = () => {
@@ -22,19 +15,13 @@ const part2 = () => {
         .split('\n')
         .map((depth) => Number(depth));
 
-    console.log(depths.length);
-
-    let prevDepth = depths[0];
-    prevDepth += depths[1];
-    prevDepth += depths[2];
-    depths = depths.slice(0);
-    let count = 0;
-    for (let i = 0; i < depths.length; i++) {
-        const depth = depths[i - 2] + depths[i - 1] + depths[i];
-        if (depth > prevDepth) count++;
-        prevDepth = depth;
-    }
-    return count;
+    return depths
+        .map(
+            (cur, i, allDepths) =>
+                allDepths[i - 2] + allDepths[i - 1] + allDepths[i] >
+                allDepths[i - 3] + allDepths[i - 2] + allDepths[i - 1]
+        )
+        .reduce((acc, cur) => acc + Number(cur), 0);
 };
 
 console.log(`Solution 1: ${part1()}`);
