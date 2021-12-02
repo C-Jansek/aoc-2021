@@ -16,7 +16,7 @@ module.exports = {
         es6: true,
     },
     rules: {
-        'indent': ['error', 4],
+        'indent': ['error', 4, { SwitchCase: 1 }],
         'max-len': [
             'error',
             100,
@@ -38,6 +38,7 @@ module.exports = {
         'unicorn/no-null': 'off',
         'unicorn/prefer-module': 'off',
         'unicorn/no-array-reduce': 'off',
+        'operator-linebreak': 'off',
         'no-undefined': 'error',
         'unicorn/prefer-default-parameters': 'off',
     },
