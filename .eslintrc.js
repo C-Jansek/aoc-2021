@@ -41,6 +41,7 @@ module.exports = {
         'operator-linebreak': 'off',
         'no-undefined': 'error',
         'unicorn/prefer-default-parameters': 'off',
+        'unicorn/prefer-node-protocol': 'off',
     },
     overrides: [
         {
