@@ -1,8 +1,15 @@
-require('dotenv').config(); //Get SESSION_COOKIE from .env
+import dotenv from 'dotenv';
+dotenv.config(); // Get SESSION_COOKIE from .env
 import https from 'https';
 import cheerio from 'cheerio';
 
-export const downloadInputForYearAndDay = (day: string, year: string) => {
+/**
+ * Download input for challenge from adventofcode.com using session cookie.
+ * @param {string} day
+ * @param {string} year
+ * @return {Promise<string>}
+ */
+export const downloadInputForYearAndDay = (day: string, year: string): Promise<string> => {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'adventofcode.com',
@@ -10,23 +17,29 @@ export const downloadInputForYearAndDay = (day: string, year: string) => {
             method: 'GET',
             port: '443',
             headers: {
-                'Cookie': `session=${process.env.SESSION_COOKIE}`,
-            }
-        }
+                Cookie: `session=${process.env.SESSION_COOKIE}`,
+            },
+        };
         let data = '';
-        https.get(options, (res: any) => {
-            res.on('data', (dataChunk: any) => {
+        https.get(options, (response: any) => {
+            response.on('data', (dataChunk: string) => {
                 data += dataChunk;
             });
-            res.on('error', (err: Error) => {
-                reject(err);
+            response.on('error', (error: Error) => {
+                reject(error);
             });
-            res.on('close', (done: any) => resolve(data))
-        })
+            response.on('close', () => resolve(data));
+        });
     });
-}
+};
 
-export const getPuzzleDescription = (year: string, day: string) => {
+/**
+ * Get challenge description from adventofcode.com using session cookie.
+ * @param {string} year
+ * @param {string} day
+ * @return {Promise<string>}
+ */
+export const getPuzzleDescription = (year: string, day: string): Promise<string> => {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'adventofcode.com',
@@ -34,28 +47,29 @@ export const getPuzzleDescription = (year: string, day: string) => {
             method: 'GET',
             port: '443',
             headers: {
-                'Cookie': `session=${process.env.SESSION_COOKIE}`,
-            }
-        }
+                Cookie: `session=${process.env.SESSION_COOKIE}`,
+            },
+        };
         let data = '';
-        https.get(options, (res: any) => {
-            res.on('data', (dataChunk: any) => {
+        https.get(options, (response: any) => {
+            response.on('data', (dataChunk: any) => {
                 data += dataChunk;
             });
-            res.on('error', (err: Error) => {
-                reject(err);
+            response.on('error', (error: Error) => {
+                reject(error);
             });
-            res.on('close', (done: any) => {
-                //Regex to filter out <main> for us
-                resolve(getReadmePage(data))
-            })
-        })
+            response.on('close', (done: any) => {
+                // Regex to filter out <main> for us
+                resolve(getReadmePage(data));
+            });
+        });
     });
-}
+};
 
 export const getReadmePage = (page: any) => {
     const $ = cheerio.load(page);
-    let nodes = $('.day-desc').children().toArray()
-    let markdown = nodes.map(n => cheerio.html(n)).join("");
-    return markdown
-}
+    const nodes = $('.day-desc')
+        .children()
+        .toArray();
+    return nodes.map((n) => cheerio.html(n)).join('');
+};
