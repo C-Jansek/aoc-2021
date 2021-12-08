@@ -35,13 +35,14 @@ module.exports = {
                 },
             },
         ],
+        'no-undefined': 'error',
         'unicorn/no-null': 'off',
         'unicorn/prefer-module': 'off',
         'unicorn/no-array-reduce': 'off',
         'operator-linebreak': 'off',
-        'no-undefined': 'error',
         'unicorn/prefer-default-parameters': 'off',
         'unicorn/prefer-node-protocol': 'off',
+        'unicorn/prefer-switch': ['error', { minimumCases: 6 }],
     },
     overrides: [
         {
