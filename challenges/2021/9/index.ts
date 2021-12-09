@@ -7,6 +7,7 @@ type Point = {
     col: number;
 };
 
+// Relative coordinates to find neighbours
 const directions = [
     [0, 1],
     [0, -1],
@@ -14,6 +15,12 @@ const directions = [
     [-1, 0],
 ];
 
+/**
+ * Get all neighbours of `point` that are directly adjacent (horizontal or vertical).
+ * @param {Array<Array<Point>>} grid The grid of points
+ * @param {Point} point The point to get neigbours from
+ * @return {Point[]} The neighbours
+ */
 const getNeighbours = (grid: Point[][], point: Point): Point[] => {
     const neighbours: Point[] = [];
     for (const direction of directions) {
