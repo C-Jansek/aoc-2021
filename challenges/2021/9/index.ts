@@ -29,28 +29,25 @@ const getNeighbours = (grid: Point[][], point: Point): Point[] => {
 
 class Grid {
     points: Point[][];
+    lowPoints: Point[];
     basins: Point[][];
 
     constructor(grid: number[][]) {
         this.points = this.parseToPoints(grid);
+        this.lowPoints = this.findLowPoints();
         this.basins = this.findBasins();
     }
 
     parseToPoints(grid: number[][]): Point[][] {
-        const pointGrid = [];
-
-        for (let row = 0; row < grid.length; row++) {
-            const pointsRow: Point[] = [];
-            for (let col = 0; col < grid[0].length; col++) {
-                pointsRow.push({
-                    value: grid[row][col],
-                    row: row,
-                    col: col,
-                });
-            }
-            pointGrid.push(pointsRow);
-        }
-        return pointGrid;
+        return grid.map((row, rowCount) => {
+            return row.map((value, colCount) => {
+                return {
+                    value: value,
+                    row: rowCount,
+                    col: colCount,
+                };
+            });
+        });
     }
 
     findLowPoints(): Point[] {
@@ -72,7 +69,7 @@ class Grid {
     findBasins(): Point[][] {
         const basins: Point[][] = [];
 
-        for (const lowPoint of this.findLowPoints()) {
+        for (const lowPoint of this.lowPoints) {
             const seen = new Set<Point>([lowPoint]);
             const toCheck: Point[] = [lowPoint];
 
@@ -102,14 +99,10 @@ const part1 = () => {
         .map((row) => row.split('').map((point) => Number(point)));
 
     const grid = new Grid(input);
-    const lowPoints = grid.findLowPoints();
 
-    let total = 0;
-    for (const lowPoint of lowPoints) {
-        total += 1 + lowPoint.value;
-    }
-
-    return total;
+    return grid.lowPoints
+        .map((lowPoint) => lowPoint.value + 1)
+        .reduce((accumulator, current) => accumulator + current, 0);
 };
 
 const part2 = () => {
