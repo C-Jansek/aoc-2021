@@ -27,14 +27,8 @@ module.exports = {
         'object-curly-spacing': ['error', 'always'],
         'linebreak-style': 'off',
         'brace-style': ['error', 'stroustrup'],
-        'require-jsdoc': [
-            'error',
-            {
-                require: {
-                    ClassDeclaration: false,
-                },
-            },
-        ],
+        'require-jsdoc': 'off',
+        'valid-jsdoc': 'off',
         'no-undefined': 'error',
         'unicorn/no-null': 'off',
         'unicorn/prefer-module': 'off',
