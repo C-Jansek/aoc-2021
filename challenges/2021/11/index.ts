@@ -7,85 +7,117 @@ type Octopuss = {
     flashed: boolean;
 };
 
-const part1 = () => {
-    const input = getInput('2021', '11')
-        .split('\n')
-        .filter((row) => row != '');
+class Cavern {
+    octopusses: Octopuss[][];
+    step: number;
 
-    // const input = [
-    //     '5483143223',
-    //     '2745854711',
-    //     '5264556173',
-    //     '6141336146',
-    //     '6357385478',
-    //     '4167524645',
-    //     '2176841721',
-    //     '6882881134',
-    //     '4846848554',
-    //     '5283751526',
-    // ];
+    constructor(input: string[]) {
+        this.octopusses = this._parseInput(input);
+        this.step = 0;
+    }
 
-    let octopusses = input.map((row, rowIndex) =>
-        row.split('').map((col, colIndex) => {
-            return {
-                row: rowIndex,
-                col: colIndex,
-                energyLevel: Number(col),
-                flashed: false,
-            };
-        }),
-    );
+    _parseInput(input: string[]): Octopuss[][] {
+        return input.map((row, rowIndex) => {
+            return row.split('').map((col, colIndex) => {
+                return {
+                    row: rowIndex,
+                    col: colIndex,
+                    energyLevel: Number(col),
+                    flashed: false,
+                };
+            });
+        });
+    }
 
-    let flashes = 0;
-
-    for (let step = 0; step < 100; step++) {
+    doStep() {
         // Increase by One
-        for (const octopuss of octopusses.flat(2)) {
+        for (const octopuss of this.octopusses.flat(2)) {
             octopuss.energyLevel += 1;
             octopuss.flashed = false;
         }
 
         // Flash
-        while (
-            octopusses.flat(2).some((octopuss) => octopuss.energyLevel > 9 && !octopuss.flashed)
-        ) {
-            for (const [rowIndex, row] of octopusses.entries()) {
-                for (const [colIndex, octopuss] of row.entries()) {
-                    if (octopuss.energyLevel > 9 && !octopuss.flashed) {
-                        octopusses[rowIndex][colIndex].flashed = true;
-                        for (const neighbour of findNeighbours(octopusses, octopuss)) {
-                            neighbour.energyLevel += 1;
-                        }
-                    }
-                }
+        while (this.toFlash().length > 0) {
+            for (const octopuss of this.toFlash()) {
+                this.flash(octopuss);
             }
         }
-        for (const octopuss of octopusses.flat(2)) {
+
+        // Reset
+        for (const octopuss of this.octopusses.flat(2)) {
             if (octopuss.flashed) {
                 octopuss.energyLevel = 0;
-                flashes += 1;
             }
         }
+
+        this.step++;
+    }
+
+    toFlash() {
+        return this.octopusses
+            .flat(2)
+            .filter((octopuss) => octopuss.energyLevel > 9 && !octopuss.flashed);
+    }
+
+    findNeighbours(octopuss: Octopuss): Octopuss[] {
+        const neighbours: Octopuss[] = [];
+        for (let row = -1; row <= 1; row++) {
+            for (let col = -1; col <= 1; col++) {
+                neighbours.push(this.get(octopuss.row - row, octopuss.col - col));
+            }
+        }
+        return neighbours;
+    }
+
+    get(row: number, col: number): Octopuss {
+        if (
+            0 <= row &&
+            row < this.octopusses.length &&
+            0 <= col &&
+            col < this.octopusses[row].length
+        ) {
+            return this.octopusses[row][col];
+        }
+        return {
+            col: col,
+            row: row,
+            energyLevel: Number.NEGATIVE_INFINITY,
+            flashed: false,
+        };
+    }
+
+    flash(octopuss: Octopuss): void {
+        octopuss.flashed = true;
+        for (const neighbour of this.findNeighbours(octopuss)) {
+            neighbour.energyLevel += 1;
+        }
+    }
+
+    countFlashed(): number {
+        return this.octopusses
+            .flat(2)
+            .reduce((total, octopuss) => (octopuss.flashed ? total + 1 : total), 0);
+    }
+
+    allFlashed(): boolean {
+        return this.octopusses.flat(2).length === this.countFlashed();
+    }
+}
+
+const part1 = () => {
+    const input = getInput('2021', '11')
+        .split('\n')
+        .filter((row) => row != '');
+
+    const cavern = new Cavern(input);
+
+    let flashes = 0;
+    while (cavern.step < 100) {
+        cavern.doStep();
+        flashes += cavern.countFlashed();
     }
 
     return flashes;
-};
-
-const findNeighbours = (octopusses: Octopuss[][], octopuss: Octopuss): Octopuss[] => {
-    const neighbours: Octopuss[] = [];
-    for (let row = -1; row <= 1; row++) {
-        for (let col = -1; col <= 1; col++) {
-            if (
-                0 <= octopuss.row - row &&
-                octopuss.row - row < octopusses.length &&
-                0 <= octopuss.col - col &&
-                octopuss.col - col < octopusses[0].length
-            ) {
-                neighbours.push(octopusses[octopuss.row - row][octopuss.col - col]);
-            }
-        }
-    }
-    return neighbours;
 };
 
 const part2 = () => {
@@ -93,63 +125,12 @@ const part2 = () => {
         .split('\n')
         .filter((row) => row != '');
 
-    // const input = [
-    //     '5483143223',
-    //     '2745854711',
-    //     '5264556173',
-    //     '6141336146',
-    //     '6357385478',
-    //     '4167524645',
-    //     '2176841721',
-    //     '6882881134',
-    //     '4846848554',
-    //     '5283751526',
-    // ];
+    const cavern = new Cavern(input);
 
-    let octopusses = input.map((row, rowIndex) =>
-        row.split('').map((col, colIndex) => {
-            return {
-                row: rowIndex,
-                col: colIndex,
-                energyLevel: Number(col),
-                flashed: false,
-            };
-        }),
-    );
-    let step = 0;
-    while (!octopusses.flat(2).every((octopuss) => octopuss.flashed)) {
-        // Increase by One
-        for (const octopuss of octopusses.flat(2)) {
-            octopuss.energyLevel += 1;
-            octopuss.flashed = false;
-        }
-
-        // Flash
-        while (
-            octopusses.flat(2).some((octopuss) => octopuss.energyLevel > 9 && !octopuss.flashed)
-        ) {
-            for (const [rowIndex, row] of octopusses.entries()) {
-                for (const [colIndex, octopuss] of row.entries()) {
-                    if (octopuss.energyLevel > 9 && !octopuss.flashed) {
-                        octopusses[rowIndex][colIndex].flashed = true;
-                        for (const neighbour of findNeighbours(octopusses, octopuss)) {
-                            neighbour.energyLevel += 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Reset
-        for (const octopuss of octopusses.flat(2)) {
-            if (octopuss.flashed) {
-                octopuss.energyLevel = 0;
-            }
-        }
-        step++;
+    while (!cavern.allFlashed()) {
+        cavern.doStep();
     }
-
-    return step;
+    return cavern.step;
 };
 
 console.log(`Solution 1: ${part1()}`);
