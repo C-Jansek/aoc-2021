@@ -11,12 +11,14 @@ interface Edge {
     nodes: Node[];
 }
 
-type Path = Node[];
-type PathDouble = {
+type Path = {
     path: Node[];
     hasDouble: boolean;
 };
 
+/**
+ * A Network of Caves.
+ */
 class Network {
     nodes: Node[];
     edges: Edge[];
@@ -27,6 +29,11 @@ class Network {
         this.parseInput(input);
     }
 
+    /**
+     * Parse edges to new Nodes and Edges.
+     *
+     * Used for constructing the network on creation.
+     */
     parseInput(input: string[]) {
         for (const line of input) {
             const [from, to] = line.split('-');
@@ -43,6 +50,11 @@ class Network {
         }
     }
 
+    /**
+     * Find node by `id`.
+     *
+     * If node is not present, create new node.
+     */
     findNodeOrNew(id: string): Node {
         const node = this.nodes.find((node) => node.id === id);
         if (!node) {
@@ -59,77 +71,87 @@ class Network {
         return node;
     }
 
+    /**
+     * Find node by `id`.
+     */
     findNode(id: string): Node {
         const node = this.nodes.find((node) => node.id === id);
         if (!node) throw new Error(`No node with id ${id}`);
         return node;
     }
 
-    allPaths(fromId: string, toId: string): Path[] {
-        const fromNode = this.findNode(fromId);
-        const toNode = this.findNode(toId);
+    /**
+     * Find all paths from `fromId` to `toId`.
+     *
+     * Small Caves can only be visited once, except if `oneSmallDouble` is true,
+     * then one small caven in every path can be visited (at most) twice.
+     */
+    allPaths(fromId: string, toId: string, oneSmallDouble = false): Path[] {
+        // Find starting and ending nodes
+        const startNode = this.findNode(fromId);
+        const endNode = this.findNode(toId);
 
-        const paths: Path[] = [[fromNode]];
+        // Start from the start
+        const partialPaths: Path[] = [{ path: [startNode], hasDouble: !oneSmallDouble }];
         const finishedPaths: Path[] = [];
 
-        while (paths.length > 0) {
-            const path = paths.pop();
+        // While there are unfinished paths not explored
+        while (partialPaths.length > 0) {
+            // Start exploring a path, or finished
+            const path = partialPaths.pop();
             if (!path) return finishedPaths;
 
-            const fromNode = path[path.length - 1];
-            if (fromNode === toNode) finishedPaths.push(path);
-            const fromEdges = fromNode.edges;
+            const processed = this.processPartialPath(path, startNode, endNode);
 
-            for (const edge of fromEdges) {
-                const toNode = edge.nodes.find((node) => node !== fromNode);
-
-                if (!toNode) throw new Error(`Edge with no end Node`);
-
-                if (!toNode.smallCave || !path.includes(toNode)) {
-                    paths.push([...path, toNode]);
-                }
-            }
+            // Update partial and finished
+            if (processed.partial) partialPaths.push(...processed.partial);
+            if (processed.finished) finishedPaths.push(processed.finished);
         }
 
         return finishedPaths;
     }
 
-    allPathsOneDouble(fromId: string, toId: string): PathDouble[] {
-        const startNode = this.findNode(fromId);
-        const endNode = this.findNode(toId);
-
-        const paths: PathDouble[] = [{ path: [startNode], hasDouble: false }];
-        const finishedPaths: PathDouble[] = [];
-
-        while (paths.length > 0) {
-            const path = paths.pop();
-            if (!path) return finishedPaths;
-
-            const fromNode = path.path[path.path.length - 1];
-            if (fromNode === endNode) {
-                finishedPaths.push(path);
-                continue;
-            }
-            const fromEdges = fromNode.edges;
-
-            for (const edge of fromEdges) {
-                const toNode = edge.nodes.find((node) => node !== fromNode);
-
-                if (!toNode) throw new Error(`Edge with no end Node`);
-
-                if (
-                    !toNode.smallCave ||
-                    !path.path.includes(toNode) ||
-                    (!path.hasDouble && toNode !== startNode)
-                ) {
-                    const hasDouble =
-                        path.hasDouble || (toNode.smallCave && path.path.includes(toNode));
-                    paths.push({ path: [...path.path, toNode], hasDouble });
-                }
-            }
+    /**
+     * Continue the Partial path.
+     *
+     * If it is already complete, return as finished.
+     *
+     * Else, return all possible partial paths continuing from the last node
+     */
+    processPartialPath(
+        partialPath: Path,
+        startNode: Node,
+        endNode: Node,
+    ): { partial: Path[] | null; finished: Path | null } {
+        const lastNode = partialPath.path[partialPath.path.length - 1];
+        if (lastNode === endNode) {
+            return { partial: null, finished: partialPath };
         }
 
-        return finishedPaths;
+        // Next nodes are all neighbours of lastNode
+        const fromEdges = lastNode.edges;
+        const partialPaths: Path[] = [];
+
+        for (const edge of fromEdges) {
+            const toNode = edge.nodes.find((node: Node) => node !== lastNode);
+            if (!toNode) throw new Error(`Edge with no end Node`);
+
+            // Can visit the node if:
+            //      A big cave
+            //      Not in path already
+            //      There is no double yet, and it's not the starting node
+            if (
+                !toNode.smallCave ||
+                !partialPath.path.includes(toNode) ||
+                (!partialPath.hasDouble && toNode !== startNode)
+            ) {
+                const hasDouble =
+                    partialPath.hasDouble ||
+                    (toNode.smallCave && partialPath.path.includes(toNode));
+                partialPaths.push({ path: [...partialPath.path, toNode], hasDouble });
+            }
+        }
+        return { partial: partialPaths, finished: null };
     }
 }
 
@@ -140,7 +162,7 @@ const part1 = () => {
 
     const network = new Network(input);
 
-    const paths = network.allPaths('start', 'end');
+    const paths = network.allPaths('start', 'end', false);
 
     return paths.length;
 };
@@ -152,7 +174,7 @@ const part2 = () => {
 
     const network = new Network(input);
 
-    const paths = network.allPathsOneDouble('start', 'end');
+    const paths = network.allPaths('start', 'end', true);
 
     return paths.length;
 };
