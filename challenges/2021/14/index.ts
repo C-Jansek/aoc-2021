@@ -1,47 +1,105 @@
 import getInput from '../../../utils/getInput';
 
+type insertionPair = {
+    pair: string;
+    newPairs: string[];
+    count: number;
+    nextCount: number;
+};
+
+type countMap = {
+    [key: string]: number;
+};
+
+class PolymerFormula {
+    insertionRules: insertionPair[];
+    template: string;
+
+    constructor(input: string[]) {
+        this.template = input[0];
+        this.insertionRules = this.parseInput(input.slice(1));
+    }
+
+    private parseInput(input: string[]): insertionPair[] {
+        return input
+            .map((line) => line.split(' -> '))
+            .map((insertion) => {
+                return {
+                    pair: insertion[0],
+                    newPairs: [insertion[0][0] + insertion[1], insertion[1] + insertion[0][1]],
+                    count: 0,
+                    nextCount: 0,
+                };
+            });
+    }
+
+    calculateOptimal(steps: number): countMap {
+        this.setInitialOccurences();
+
+        for (let step = 0; step < steps; step++) {
+            this.performStep();
+        }
+
+        return this.castToCountMap();
+    }
+
+    private castToCountMap(): countMap {
+        const counts: { [key: string]: number } = {};
+        for (const pair of this.insertionRules) {
+            for (const char of pair.pair) {
+                if (counts[char]) counts[char] += pair.count;
+                else counts[char] = pair.count;
+            }
+        }
+
+        // Every entry is doubly counted due to being in two pairs.
+        for (const [id, count] of Object.entries(counts)) {
+            counts[id] = Math.ceil(count / 2);
+        }
+        return counts;
+    }
+
+    private performStep(): void {
+        for (const pair of this.insertionRules) {
+            if (pair.count > 0) {
+                for (const newPair of pair.newPairs) {
+                    const p = this.insertionRules.find((p) => p.pair === newPair);
+                    if (p) p.nextCount += pair.count;
+                }
+                pair.count = 0;
+            }
+        }
+
+        // Reset
+        for (const pair of this.insertionRules) {
+            pair.count = pair.nextCount;
+            pair.nextCount = 0;
+        }
+    }
+
+    private setInitialOccurences(): void {
+        for (let charIndex = 0; charIndex < this.template.length - 1; charIndex++) {
+            for (const rule of this.insertionRules) {
+                if (rule.pair === this.template[charIndex] + this.template[charIndex + 1]) {
+                    rule.count++;
+                }
+            }
+        }
+    }
+}
+
 const part1 = () => {
     const input = getInput('2021', '14')
         .split('\n')
         .filter((line) => line !== '');
 
-    let template = input[0];
+    const polymer = new PolymerFormula(input);
+    const counts = polymer.calculateOptimal(10);
 
-    const insertions = input.slice(1).map((line) => line.split(' -> '));
+    const mostCommonCount = Math.max(...Object.values(counts));
+    const leastCommonCount = Math.min(...Object.values(counts));
 
-    const steps = 10;
-    for (let step = 0; step < steps; step++) {
-        let newTemplate = '';
-
-        for (let char = 0; char < template.length - 1; char++) {
-            const match = insertions.find(
-                (insertion) => insertion[0] === template[char] + template[char + 1],
-            );
-
-            newTemplate += template[char];
-            if (match) {
-                newTemplate += match[1];
-            }
-        }
-        newTemplate += template[template.length - 1];
-        template = newTemplate;
-    }
-
-    const counts: { [key: string]: number } = {};
-    for (const char of template) {
-        if (counts[char]) counts[char] += 1;
-        else counts[char] = 1;
-    }
-
-    console.log(counts);
-
-    return Math.max(...Object.values(counts)) - Math.min(...Object.values(counts));
-};
-
-type insertionPair = {
-    find: string;
-    twoNew: { first: string; second: string };
-    count: number;
+    return mostCommonCount - leastCommonCount;
 };
 
 const part2 = () => {
@@ -49,69 +107,13 @@ const part2 = () => {
         .split('\n')
         .filter((line) => line !== '');
 
-    let template = input[0];
+    const polymer = new PolymerFormula(input);
+    const counts = polymer.calculateOptimal(40);
 
-    const insertions = input.slice(1).map((line) => line.split(' -> '));
-    const pairs = insertions.map((insertion) => {
-        return {
-            find: insertion[0],
-            twoNew: {
-                first: insertion[0][0] + insertion[1],
-                second: insertion[1] + insertion[0][1],
-            },
-            count: 0,
-            nextCount: 0,
-        };
-    });
+    const mostCommonCount = Math.max(...Object.values(counts));
+    const leastCommonCount = Math.min(...Object.values(counts));
 
-    for (let char = 0; char < template.length - 1; char++) {
-        const match = insertions.find(
-            (insertion) => insertion[0] === template[char] + template[char + 1],
-        );
-
-        if (match) {
-            const pair = pairs.find((pair) => pair.find === match[0]);
-            if (pair) pair.count++;
-        }
-    }
-
-    const steps = 40;
-    for (let step = 0; step < steps; step++) {
-        // console.log({ step });
-        for (const pair of pairs) {
-            // console.log('do', pair.find, pair.count);
-            if (pair.count >= 1) {
-                const pairOne = pairs.find((p) => p.find === pair.twoNew.first);
-                const pairTwo = pairs.find((p) => p.find === pair.twoNew.second);
-                if (pairOne) pairOne.nextCount += pair.count;
-                if (pairTwo) pairTwo.nextCount += pair.count;
-                pair.count = 0;
-            }
-        }
-        for (const pair of pairs) {
-            pair.count = pair.nextCount;
-            pair.nextCount = 0;
-        }
-    }
-    // console.log(pairs.map((pair) => pair.find + '  ' + pair.count).join('\n'));
-
-    const counts: { [key: string]: number } = {};
-    for (const pair of pairs) {
-        const charOne = pair.find[0];
-        const charTwo = pair.find[1];
-
-        if (counts[charOne]) counts[charOne] += pair.count;
-        else counts[charOne] = pair.count;
-        if (counts[charTwo]) counts[charTwo] += pair.count;
-        else counts[charTwo] = pair.count;
-    }
-
-    for (const [id, count] of Object.entries(counts)) {
-        counts[id] = Math.ceil(count / 2);
-    }
-    console.log(counts);
-
-    return Math.max(...Object.values(counts)) - Math.min(...Object.values(counts));
+    return mostCommonCount - leastCommonCount;
 };
 
 console.log(`Solution 1: ${part1()}`);
