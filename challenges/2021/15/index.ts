@@ -1,4 +1,5 @@
 import getInput from '../../../utils/getInput';
+import Heap from 'heap';
 
 type Point = {
     row: number;
@@ -22,10 +23,11 @@ class Grid {
     }
 
     findShortestPath(start: Point, end: Point): number {
-        const pQueue = [start];
+        const pQueue = new Heap((a: Point, b: Point) => (b.totalCost > a.totalCost ? -1 : 1));
+        pQueue.push(start);
         start.totalCost = 0;
 
-        while (pQueue.length > 0) {
+        while (!pQueue.empty()) {
             const next = pQueue.pop();
             if (!next) throw new Error('No more points');
             if (next === end) {
@@ -42,8 +44,6 @@ class Grid {
                 }
                 pQueue.push(short);
             }
-
-            pQueue.sort((a, b) => b.totalCost - a.totalCost);
         }
         throw new Error('Found no Path!');
     }
