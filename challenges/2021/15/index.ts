@@ -3,61 +3,8 @@ import getInput from '../../../utils/getInput';
 type Point = {
     row: number;
     col: number;
-    pathUntil: number;
     cost: number;
-    pointsUntil: Point[];
-};
-
-const part1 = () => {
-    const input = getInput('2021', '15')
-        .split('\n')
-        .filter((line) => line !== '')
-        .map((row) => row.split(''));
-
-    const grid: Point[][] = [];
-
-    for (const [rowIndex, row] of input.entries()) {
-        const pointRow: Point[] = [];
-        for (const [colIndex, col] of row.entries()) {
-            pointRow[colIndex] = {
-                row: rowIndex,
-                col: colIndex,
-                pathUntil: Number.POSITIVE_INFINITY,
-                cost: Number(col),
-                pointsUntil: [],
-            };
-        }
-        grid[rowIndex] = pointRow;
-    }
-
-    const start = grid[0][0];
-    const end = grid[grid.length - 1][grid[0].length - 1];
-
-    start.pathUntil = 0;
-    const seen = new Set<string>();
-    const adjacent: Point[] = [start];
-
-    // Looping
-    while (adjacent.length > 0) {
-        const nextToCheck = adjacent.pop();
-        // If it is the last element
-        if (!nextToCheck) {
-            throw new Error('No more points!');
-        }
-        seen.add(getHash(nextToCheck));
-
-        if (nextToCheck === end) {
-            return nextToCheck.pathUntil;
-        }
-
-        adjacent.push(...getNeighbours(nextToCheck, grid, seen));
-        if (adjacent.includes(end)) {
-            return end.pathUntil;
-        }
-        adjacent.sort((a, b) => b.pathUntil - a.pathUntil);
-    }
-
-    return;
+    totalCost: number;
 };
 
 const directions = [
@@ -66,94 +13,128 @@ const directions = [
     [1, 0],
     [-1, 0],
 ];
-const getNeighbours = (point: Point, grid: Point[][], seen: Set<string>): Point[] => {
-    const neighbours: Point[] = [];
-    for (const direction of directions) {
-        const row = grid[point.row + direction[0]];
-        if (row) {
-            const col = row[point.col + direction[1]];
-            if (col && col.pathUntil === Number.POSITIVE_INFINITY) {
-                col.pathUntil = point.pathUntil + col.cost;
-                col.pointsUntil = [...point.pointsUntil, col];
-                neighbours.push(col);
+
+class Grid {
+    points: Point[][];
+
+    constructor(input: string[], nSquaredTiles = 1) {
+        this.points = this._parseInput(input, nSquaredTiles);
+    }
+
+    findShortestPath(start: Point, end: Point): number {
+        const pQueue = [start];
+        start.totalCost = 0;
+
+        while (pQueue.length > 0) {
+            const next = pQueue.pop();
+            if (!next) throw new Error('No more points');
+            if (next === end) {
+                return end.totalCost;
+            }
+            const shorterNeighbours = this.getNeighbours(next).filter(
+                (neighbour) => neighbour.totalCost > next.totalCost + neighbour.cost,
+            );
+
+            for (const short of shorterNeighbours) {
+                short.totalCost = next.totalCost + short.cost;
+                if (short === end) {
+                    return end.totalCost;
+                }
+                pQueue.push(short);
+            }
+
+            pQueue.sort((a, b) => b.totalCost - a.totalCost);
+        }
+        throw new Error('Found no Path!');
+    }
+
+    getPoint(row: number, col: number): Point {
+        return this.points[row] && this.points[row][col]
+            ? this.points[row][col]
+            : { row, col, cost: Number.POSITIVE_INFINITY, totalCost: Number.POSITIVE_INFINITY };
+    }
+
+    getNeighbours(point: Point): Point[] {
+        return directions.map((direction) => {
+            return this.getPoint(point.row + direction[0], point.col + direction[1]);
+        });
+    }
+
+    _parseInput(input: string[], nSquaredTiles: number): Point[][] {
+        const points: Point[][] = [];
+
+        for (let rowTile = 0; rowTile < nSquaredTiles; rowTile++) {
+            for (const [rowIndex, inputRow] of input.entries()) {
+                const row: Point[] = [];
+
+                for (let colTile = 0; colTile < nSquaredTiles; colTile++) {
+                    for (const [colIndex, point] of inputRow.split('').entries()) {
+                        row.push({
+                            row: rowIndex + input.length * rowTile,
+                            col: colIndex + input[0].length * colTile,
+                            cost: this._getCost(Number(point) + rowTile + colTile),
+                            totalCost: Number.POSITIVE_INFINITY,
+                        });
+                    }
+                }
+
+                points.push(row);
             }
         }
+
+        return points;
     }
-    return neighbours;
+
+    _getCost(cost: number): number {
+        while (cost > 9) cost -= 9;
+        return cost;
+    }
+
+    printGrid(): void {
+        console.log(
+            this.points
+                .map((row) => row.map((point) => `${point.cost}`.slice(-3)).join(' '))
+                .join('\n'),
+        );
+        console.log(
+            this.points
+                .map((row) => row.map((point) => `000${point.totalCost}`.slice(-3)).join(' '))
+                .join('\n'),
+        );
+    }
+}
+
+const part1 = () => {
+    console.time('p1');
+    const input = getInput('2021', '15')
+        .split('\n')
+        .filter((line) => line !== '');
+
+    const grid = new Grid(input, 1);
+
+    const start = grid.getPoint(0, 0);
+    const end = grid.getPoint(
+        grid.points.length - 1,
+        grid.points[grid.points.length - 1].length - 1,
+    );
+
+    return grid.findShortestPath(start, end);
 };
 
 const part2 = () => {
     const input = getInput('2021', '15')
         .split('\n')
-        .filter((line) => line !== '')
-        .map((row) => row.split(''));
+        .filter((line) => line !== '');
 
-    const grid: Point[][] = [];
+    const grid = new Grid(input, 5);
 
-    const width = input[0].length;
-    const height = input.length;
+    const start = grid.getPoint(0, 0);
+    const end = grid.getPoint(
+        grid.points.length - 1,
+        grid.points[grid.points.length - 1].length - 1,
+    );
 
-    for (let rowFactor = 0; rowFactor < 5; rowFactor++) {
-        for (let colFactor = 0; colFactor < 5; colFactor++) {
-            for (const [rowIndex, row] of input.entries()) {
-                const pointRow: Point[] = grid[rowIndex + rowFactor * height]
-                    ? grid[rowIndex + rowFactor * height]
-                    : [];
-                for (const [colIndex, col] of row.entries()) {
-                    const cost = calculateCost(Number(col), rowFactor, colFactor);
-                    pointRow[colIndex + colFactor * width] = {
-                        row: rowIndex + colFactor * width,
-                        col: colIndex + rowFactor * height,
-                        pathUntil: Number.POSITIVE_INFINITY,
-                        cost,
-                        pointsUntil: [],
-                    };
-                }
-                grid[rowIndex + rowFactor * height] = pointRow;
-            }
-        }
-    }
-
-    const start = grid[0][0];
-    const end = grid[grid.length - 1][grid[0].length - 1];
-
-    start.pathUntil = 0;
-    const seen = new Set<string>();
-    const adjacent: Point[] = [start];
-
-    // Looping
-    while (adjacent.length > 0) {
-        const nextToCheck = adjacent.pop();
-        // If it is the last element
-        if (!nextToCheck) {
-            throw new Error('No more points!');
-        }
-        seen.add(getHash(nextToCheck));
-
-        if (nextToCheck === end) {
-            return nextToCheck.pathUntil;
-        }
-
-        adjacent.push(...getNeighbours(nextToCheck, grid, seen));
-        if (adjacent.includes(end)) {
-            return end.pathUntil;
-        }
-        adjacent.sort((a, b) => b.pathUntil - a.pathUntil);
-    }
-    console.log('wait what?');
-    return;
-};
-
-const getHash = (point: Point): string => {
-    return `${point.row}_${point.col}_${point.cost}`;
-};
-
-const calculateCost = (cost: number, rowFactor: number, colFactor: number): number => {
-    cost += rowFactor + colFactor;
-    while (true) {
-        if (cost <= 9) return cost;
-        cost -= 9;
-    }
+    return grid.findShortestPath(start, end);
 };
 
 console.log(`Solution 1: ${part1()}`);
