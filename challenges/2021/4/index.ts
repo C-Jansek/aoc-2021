@@ -1,20 +1,21 @@
 import getInput from '../../../utils/getInput';
 
 type parsedInput = {
-    drawString: number[];
-    boards: Board[];
+    boards: Board[],
+    drawString: number[],
 };
 
 class Board {
     numbers: number[][];
+
     drawn: boolean[][];
 
-    constructor(input: number[][]) {
+    constructor (input: number[][]) {
         this.numbers = input;
         this.drawn = input.map((row) => row.map(() => false));
     }
 
-    hasWon(): boolean {
+    hasWon (): boolean {
         for (let index = 0; index < this.drawn.length; index++) {
             // Check horizontal all drawn
             if (this.drawn[index].reduce((a, b) => bothTrue(a, b), true)) {
@@ -26,10 +27,11 @@ class Board {
                 return true;
             }
         }
+
         return false;
     }
 
-    drawNumber(number: number): void {
+    drawNumber (number: number): void {
         for (let row = 0; row < this.numbers.length; row++) {
             for (let col = 0; col < this.numbers[row].length; col++) {
                 if (this.numbers[row][col] === number) {
@@ -40,7 +42,7 @@ class Board {
         }
     }
 
-    remainingUnmarked(): number {
+    remainingUnmarked (): number {
         let totalUnmarked = 0;
 
         for (let row = 0; row < this.numbers.length; row++) {
@@ -50,6 +52,7 @@ class Board {
                 }
             }
         }
+
         return totalUnmarked;
     }
 }
@@ -61,7 +64,7 @@ const bothTrue = (a: boolean, b: boolean) => a && b;
  * @param {string[]} input boards in strings, separated by newlines
  * @return {parsedInput}
  */
-function parseInput(input: string[]): parsedInput {
+function parseInput (input: string[]): parsedInput {
     const drawString = input[0].split(',').map((string) => Number(string));
     const boards: Board[] = [];
     let board: number[][] = [];
@@ -80,6 +83,7 @@ function parseInput(input: string[]): parsedInput {
             board = [];
         }
     }
+
     return { boards, drawString };
 }
 

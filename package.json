@@ -7,11 +7,15 @@
     "start": "ts-node index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint --ignore-path .gitignore \"challenges/**/*.ts\"",
+    "lint-fix": "eslint --fix --ignore-path .gitignore \"challenges/**/*.ts\"",
     "format": "prettier-eslint */.{json,js,ts,md} --write"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@babel/core": "^7.16.5",
+    "@babel/eslint-parser": "^7.16.5",
+    "@babel/preset-env": "^7.16.5",
     "@types/heap": "^0.2.28",
     "@types/lodash": "^4.14.177",
     "@types/node": "^16.11.11",
@@ -20,10 +24,12 @@
     "@typescript-eslint/parser": "^5.5.0",
     "cheerio": "^1.0.0-rc.5",
     "dotenv": "^8.2.0",
-    "eslint": "^7.30.0",
+    "eslint": "^7.32.0",
     "eslint-config-google": "^0.14.0",
+    "eslint-plugin-canonical": "^2.1.0",
     "eslint-plugin-import": "^2.23.4",
     "eslint-plugin-jsdoc": "^35.4.3",
+    "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-sonarjs": "^0.9.1",
     "eslint-plugin-unicorn": "^34.0.1",
     "heap": "^0.2.7",
@@ -36,6 +42,7 @@
     "typescript": "^4.5.2"
   },
   "dependencies": {
-    "@types/three": "^0.134.0"
+    "@types/three": "^0.134.0",
+    "eslint-config-canonical": "^32.46.1"
   }
 }

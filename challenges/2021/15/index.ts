@@ -2,10 +2,10 @@ import getInput from '../../../utils/getInput';
 import Heap from 'heap';
 
 type Point = {
-    row: number;
-    col: number;
-    cost: number;
-    totalCost: number;
+    col: number,
+    cost: number,
+    row: number,
+    totalCost: number,
 };
 
 const directions = [
@@ -18,12 +18,12 @@ const directions = [
 class Grid {
     points: Point[][];
 
-    constructor(input: string[], nSquaredTiles = 1) {
+    constructor (input: string[], nSquaredTiles = 1) {
         this.points = this._parseInput(input, nSquaredTiles);
     }
 
-    findShortestPath(start: Point, end: Point): number {
-        const pQueue = new Heap((a: Point, b: Point) => (b.totalCost > a.totalCost ? -1 : 1));
+    findShortestPath (start: Point, end: Point): number {
+        const pQueue = new Heap((a: Point, b: Point) => b.totalCost > a.totalCost ? -1 : 1);
         pQueue.push(start);
         start.totalCost = 0;
 
@@ -33,6 +33,7 @@ class Grid {
             if (next === end) {
                 return end.totalCost;
             }
+
             const shorterNeighbours = this.getNeighbours(next).filter(
                 (neighbour) => neighbour.totalCost > next.totalCost + neighbour.cost,
             );
@@ -42,25 +43,27 @@ class Grid {
                 if (short === end) {
                     return end.totalCost;
                 }
+
                 pQueue.push(short);
             }
         }
+
         throw new Error('Found no Path!');
     }
 
-    getPoint(row: number, col: number): Point {
+    getPoint (row: number, col: number): Point {
         return this.points[row] && this.points[row][col]
             ? this.points[row][col]
-            : { row, col, cost: Number.POSITIVE_INFINITY, totalCost: Number.POSITIVE_INFINITY };
+            : { col, cost: Number.POSITIVE_INFINITY, row, totalCost: Number.POSITIVE_INFINITY };
     }
 
-    getNeighbours(point: Point): Point[] {
+    getNeighbours (point: Point): Point[] {
         return directions.map((direction) => {
             return this.getPoint(point.row + direction[0], point.col + direction[1]);
         });
     }
 
-    _parseInput(input: string[], nSquaredTiles: number): Point[][] {
+    _parseInput (input: string[], nSquaredTiles: number): Point[][] {
         const points: Point[][] = [];
 
         for (let rowTile = 0; rowTile < nSquaredTiles; rowTile++) {
@@ -70,9 +73,9 @@ class Grid {
                 for (let colTile = 0; colTile < nSquaredTiles; colTile++) {
                     for (const [colIndex, point] of inputRow.split('').entries()) {
                         row.push({
-                            row: rowIndex + input.length * rowTile,
                             col: colIndex + input[0].length * colTile,
                             cost: this._getCost(Number(point) + rowTile + colTile),
+                            row: rowIndex + input.length * rowTile,
                             totalCost: Number.POSITIVE_INFINITY,
                         });
                     }
@@ -85,12 +88,12 @@ class Grid {
         return points;
     }
 
-    _getCost(cost: number): number {
+    _getCost (cost: number): number {
         while (cost > 9) cost -= 9;
         return cost;
     }
 
-    printGrid(): void {
+    printGrid (): void {
         console.log(
             this.points
                 .map((row) => row.map((point) => `${point.cost}`.slice(-3)).join(' '))

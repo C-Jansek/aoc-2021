@@ -23,17 +23,19 @@ const part1 = () => {
             lines.push(new Vector4(x1, y1, x2, y2));
         }
     }
+
     const grid: number[][] = [];
     for (let x = 0; x < size; x++) {
         const row: number[] = [];
         for (let y = 0; y < size; y++) {
             row.push(0);
         }
+
         grid.push(row);
     }
 
     for (const line of lines) {
-        //    Vertical line
+    //    Vertical line
         if (line.x === line.z) {
             for (let y = line.y; y <= line.w; y++) {
                 grid[y][line.x] += 1;
@@ -53,6 +55,7 @@ const part1 = () => {
             if (grid[y][x] > 1) total++;
         }
     }
+
     return total;
 };
 
@@ -76,17 +79,19 @@ const part2 = () => {
             lines.push(new Vector4(x1, y1, x2, y2));
         }
     }
+
     const grid: number[][] = [];
     for (let x = 0; x < size; x++) {
         const row: number[] = [];
         for (let y = 0; y < size; y++) {
             row.push(0);
         }
+
         grid.push(row);
     }
 
     for (const line of lines) {
-        //    Vertical line
+    //    Vertical line
         if (line.x === line.z) {
             for (let y = line.y; y <= line.w; y++) {
                 grid[y][line.x] += 1;
@@ -132,6 +137,7 @@ const part2 = () => {
             if (grid[y][x] > 1) total++;
         }
     }
+
     return total;
 };
 

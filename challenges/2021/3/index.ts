@@ -47,6 +47,7 @@ const part2 = () => {
         if (!oxygenRating && oxRemaining.length === 1) {
             oxygenRating = Number.parseInt(oxRemaining[0], 2);
         }
+
         if (!co2Rating && coRemaining.length === 1) {
             co2Rating = Number.parseInt(coRemaining[0], 2);
         }

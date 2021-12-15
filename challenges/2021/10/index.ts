@@ -5,10 +5,10 @@ import getInput from '../../../utils/getInput';
  * Also includes their scores for both corruption and autoCompletion.
  */
 const chars = [
-    { open: '(', close: ')', corruptionScore: 3, autoCompleteScore: 1 },
-    { open: '[', close: ']', corruptionScore: 57, autoCompleteScore: 2 },
-    { open: '{', close: '}', corruptionScore: 1197, autoCompleteScore: 3 },
-    { open: '<', close: '>', corruptionScore: 25_137, autoCompleteScore: 4 },
+    { autoCompleteScore: 1, close: ')', corruptionScore: 3, open: '(' },
+    { autoCompleteScore: 2, close: ']', corruptionScore: 57, open: '[' },
+    { autoCompleteScore: 3, close: '}', corruptionScore: 1197, open: '{' },
+    { autoCompleteScore: 4, close: '>', corruptionScore: 25_137, open: '<' },
 ];
 
 /**
@@ -21,7 +21,7 @@ const chars = [
 const corruptedScore = (line: string): number => {
     const charStack: string[] = [];
     for (const character of line) {
-        // Push opening characters onto the stack
+    // Push opening characters onto the stack
         if (chars.map((char) => char.open).includes(character)) {
             charStack.push(character);
         } else {
@@ -36,6 +36,7 @@ const corruptedScore = (line: string): number => {
             }
         }
     }
+
     return 0;
 };
 
@@ -65,6 +66,7 @@ const autoCompleteScore = (line: string): number => {
         score *= 5;
         score += chars.find((char) => char.open === lastCharacter)?.autoCompleteScore || 0;
     }
+
     return score;
 };
 

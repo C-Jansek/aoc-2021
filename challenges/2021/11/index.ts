@@ -1,36 +1,37 @@
 import getInput from '../../../utils/getInput';
 
 type Octopuss = {
-    row: number;
-    col: number;
-    energyLevel: number;
-    flashed: boolean;
+    col: number,
+    energyLevel: number,
+    flashed: boolean,
+    row: number,
 };
 
 class Cavern {
     octopusses: Octopuss[][];
+
     step: number;
 
-    constructor(input: string[]) {
+    constructor (input: string[]) {
         this.octopusses = this._parseInput(input);
         this.step = 0;
     }
 
-    _parseInput(input: string[]): Octopuss[][] {
+    _parseInput (input: string[]): Octopuss[][] {
         return input.map((row, rowIndex) => {
             return row.split('').map((col, colIndex) => {
                 return {
-                    row: rowIndex,
                     col: colIndex,
                     energyLevel: Number(col),
                     flashed: false,
+                    row: rowIndex,
                 };
             });
         });
     }
 
-    doStep() {
-        // Increase by One
+    doStep () {
+    // Increase by One
         for (const octopuss of this.octopusses.flat(2)) {
             octopuss.energyLevel += 1;
             octopuss.flashed = false;
@@ -53,23 +54,24 @@ class Cavern {
         this.step++;
     }
 
-    toFlash() {
+    toFlash () {
         return this.octopusses
             .flat(2)
             .filter((octopuss) => octopuss.energyLevel > 9 && !octopuss.flashed);
     }
 
-    findNeighbours(octopuss: Octopuss): Octopuss[] {
+    findNeighbours (octopuss: Octopuss): Octopuss[] {
         const neighbours: Octopuss[] = [];
         for (let row = -1; row <= 1; row++) {
             for (let col = -1; col <= 1; col++) {
                 neighbours.push(this.get(octopuss.row - row, octopuss.col - col));
             }
         }
+
         return neighbours;
     }
 
-    get(row: number, col: number): Octopuss {
+    get (row: number, col: number): Octopuss {
         if (
             0 <= row &&
             row < this.octopusses.length &&
@@ -78,28 +80,29 @@ class Cavern {
         ) {
             return this.octopusses[row][col];
         }
+
         return {
             col: col,
-            row: row,
             energyLevel: Number.NEGATIVE_INFINITY,
             flashed: false,
+            row: row,
         };
     }
 
-    flash(octopuss: Octopuss): void {
+    flash (octopuss: Octopuss): void {
         octopuss.flashed = true;
         for (const neighbour of this.findNeighbours(octopuss)) {
             neighbour.energyLevel += 1;
         }
     }
 
-    countFlashed(): number {
+    countFlashed (): number {
         return this.octopusses
             .flat(2)
-            .reduce((total, octopuss) => (octopuss.flashed ? total + 1 : total), 0);
+            .reduce((total, octopuss) => octopuss.flashed ? total + 1 : total, 0);
     }
 
-    allFlashed(): boolean {
+    allFlashed (): boolean {
         return this.octopusses.flat(2).length === this.countFlashed();
     }
 }
@@ -130,6 +133,7 @@ const part2 = () => {
     while (!cavern.allFlashed()) {
         cavern.doStep();
     }
+
     return cavern.step;
 };
 

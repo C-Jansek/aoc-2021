@@ -18,6 +18,7 @@ const part1 = () => {
                 break;
         }
     }
+
     return location.x * location.y;
 };
 
@@ -41,6 +42,7 @@ const part2 = () => {
                 break;
         }
     }
+
     return location.x * location.y;
 };
 

@@ -2,22 +2,22 @@ import * as _ from 'lodash';
 import getInput from '../../../utils/getInput';
 
 type Point = {
-    x: number;
-    y: number;
+    x: number,
+    y: number,
 };
 
 type Fold = {
-    axis: string;
-    value: number;
+    axis: string,
+    value: number,
 };
 
 /**
  * Parse the input to a list of coordinates and a list of folds.
  */
-const parseInput = (input: string[]): { coordinates: Point[]; folds: Fold[] } => {
+const parseInput = (input: string[]): { coordinates: Point[], folds: Fold[], } => {
     const coordinates = input
         .filter((line) => line !== '')
-        .filter((line) => line.match(/fold along/) === null)
+        .filter((line) => /fold along/.exec(line) === null)
         .map((line) => line.split(','))
         .map((point) => {
             return { x: Number(point[0]), y: Number(point[1]) };
@@ -25,10 +25,10 @@ const parseInput = (input: string[]): { coordinates: Point[]; folds: Fold[] } =>
 
     const folds = input
         .filter((line) => line !== '')
-        .filter((line) => line.match(/fold along/) !== null)
+        .filter((line) => /fold along/.exec(line) !== null)
         .map((line) => {
             const row = line.split('=');
-            const axis = row[0].slice(-1) === 'x' ? 'x' : 'y';
+            const axis = row[0].endsWith('x') ? 'x' : 'y';
             const value = Number(row[1]);
             return { axis, value };
         });
@@ -49,8 +49,10 @@ const printCode = (coordinates: Point[]): string => {
         for (let col = 0; col <= maxX; col++) {
             output += coordinates.some((point) => point.x === col && point.y === row) ? '█' : ' ';
         }
+
         output += '\n';
     }
+
     return output;
 };
 
@@ -65,6 +67,7 @@ const part1 = () => {
         if (fold.axis === 'y' && coord.y > fold.value) {
             coord.y = fold.value - (coord.y - fold.value);
         }
+
         if (fold.axis === 'x' && coord.x > fold.value) {
             coord.x = fold.value - (coord.x - fold.value);
         }
@@ -87,6 +90,7 @@ const part2 = () => {
             if (fold.axis === 'y' && coord.y > fold.value) {
                 coord.y = fold.value - (coord.y - fold.value);
             }
+
             if (fold.axis === 'x' && coord.x > fold.value) {
                 coord.x = fold.value - (coord.x - fold.value);
             }

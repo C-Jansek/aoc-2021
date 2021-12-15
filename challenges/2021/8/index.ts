@@ -29,7 +29,7 @@ const processLine = (line: string): number => {
         .split(' | ')
         .map((part) => part.split(' ').map((segment) => new Set(segment.split(''))));
 
-    const digits: { [key: number]: Set<string> } = {};
+    const digits: { [key: number]: Set<string>, } = {};
 
     // Set all unique lengths
     for (const digit of input) {
@@ -78,6 +78,7 @@ const part2 = () => {
     for (const line of input) {
         total += processLine(line);
     }
+
     return total;
 };
 

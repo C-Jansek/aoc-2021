@@ -1,19 +1,19 @@
 import getInput from '../../../utils/getInput';
 
-interface Node {
-    id: string;
-    edges: Edge[];
-    smallCave: boolean;
-}
+type Node = {
+    edges: Edge[],
+    id: string,
+    smallCave: boolean,
+};
 
-interface Edge {
-    id: string;
-    nodes: Node[];
-}
+type Edge = {
+    id: string,
+    nodes: Node[],
+};
 
 type Path = {
-    path: Node[];
-    hasDouble: boolean;
+    hasDouble: boolean,
+    path: Node[],
 };
 
 /**
@@ -21,9 +21,10 @@ type Path = {
  */
 class Network {
     nodes: Node[];
+
     edges: Edge[];
 
-    constructor(input: string[]) {
+    constructor (input: string[]) {
         this.nodes = [];
         this.edges = [];
         this.parseInput(input);
@@ -34,7 +35,7 @@ class Network {
      *
      * Used for constructing the network on creation.
      */
-    parseInput(input: string[]) {
+    parseInput (input: string[]) {
         for (const line of input) {
             const [from, to] = line.split('-');
             const fromNode = this.findNodeOrNew(from);
@@ -55,26 +56,28 @@ class Network {
      *
      * If node is not present, create new node.
      */
-    findNodeOrNew(id: string): Node {
+    findNodeOrNew (id: string): Node {
         const node = this.nodes.find((node) => node.id === id);
         if (!node) {
             let smallCave = false;
             if (/[a-z]/.test(id)) {
                 smallCave = true;
             }
+
             return {
-                id,
                 edges: [],
+                id,
                 smallCave,
             };
         }
+
         return node;
     }
 
     /**
      * Find node by `id`.
      */
-    findNode(id: string): Node {
+    findNode (id: string): Node {
         const node = this.nodes.find((node) => node.id === id);
         if (!node) throw new Error(`No node with id ${id}`);
         return node;
@@ -86,13 +89,13 @@ class Network {
      * Small Caves can only be visited once, except if `oneSmallDouble` is true,
      * then one small caven in every path can be visited (at most) twice.
      */
-    allPaths(fromId: string, toId: string, oneSmallDouble = false): Path[] {
+    allPaths (fromId: string, toId: string, oneSmallDouble = false): Path[] {
         // Find starting and ending nodes
         const startNode = this.findNode(fromId);
         const endNode = this.findNode(toId);
 
         // Start from the start
-        const partialPaths: Path[] = [{ path: [startNode], hasDouble: !oneSmallDouble }];
+        const partialPaths: Path[] = [{ hasDouble: !oneSmallDouble, path: [startNode] }];
         const finishedPaths: Path[] = [];
 
         // While there are unfinished paths not explored
@@ -118,14 +121,14 @@ class Network {
      *
      * Else, return all possible partial paths continuing from the last node
      */
-    processPartialPath(
+    processPartialPath (
         partialPath: Path,
         startNode: Node,
         endNode: Node,
-    ): { partial: Path[] | null; finished: Path | null } {
+    ): { finished: Path | null, partial: Path[] | null, } {
         const lastNode = partialPath.path[partialPath.path.length - 1];
         if (lastNode === endNode) {
-            return { partial: null, finished: partialPath };
+            return { finished: partialPath, partial: null };
         }
 
         // Next nodes are all neighbours of lastNode
@@ -134,7 +137,7 @@ class Network {
 
         for (const edge of fromEdges) {
             const toNode = edge.nodes.find((node: Node) => node !== lastNode);
-            if (!toNode) throw new Error(`Edge with no end Node`);
+            if (!toNode) throw new Error('Edge with no end Node');
 
             // Can visit the node if:
             //      A big cave
@@ -143,15 +146,16 @@ class Network {
             if (
                 !toNode.smallCave ||
                 !partialPath.path.includes(toNode) ||
-                (!partialPath.hasDouble && toNode !== startNode)
+                !partialPath.hasDouble && toNode !== startNode
             ) {
                 const hasDouble =
                     partialPath.hasDouble ||
-                    (toNode.smallCave && partialPath.path.includes(toNode));
-                partialPaths.push({ path: [...partialPath.path, toNode], hasDouble });
+                    toNode.smallCave && partialPath.path.includes(toNode);
+                partialPaths.push({ hasDouble, path: [...partialPath.path, toNode] });
             }
         }
-        return { partial: partialPaths, finished: null };
+
+        return { finished: null, partial: partialPaths };
     }
 }
 

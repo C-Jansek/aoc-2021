@@ -41,14 +41,15 @@ function simulateFishPopulation(
                 newFish[reproducedFishAge] += fishDaysTillReproduce[0];
                 newFish[newlyBornAge] += fishDaysTillReproduce[0];
             }
-
             // Others get closer to reproduction
             else {
                 newFish[fishAge - 1] = fishDaysTillReproduce[fishAge];
             }
         }
+
         fishDaysTillReproduce = newFish;
     }
+
     // Return total amount of fish
     return fishDaysTillReproduce.reduce((total, daysToGo) => total + daysToGo, 0);
 }

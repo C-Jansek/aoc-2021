@@ -14,6 +14,7 @@ const part1 = () => {
         for (const crab of crabs) {
             neededFuel += Math.abs(position - crab);
         }
+
         if (minFuel > neededFuel) minFuel = neededFuel;
     }
 
@@ -37,6 +38,7 @@ const part2 = () => {
                 neededFuel += step;
             }
         }
+
         if (minFuel > neededFuel) minFuel = neededFuel;
     }
 

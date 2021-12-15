@@ -2,9 +2,9 @@ import _ from 'lodash';
 import getInput from '../../../utils/getInput';
 
 type Point = {
-    value: number;
-    row: number;
-    col: number;
+    col: number,
+    row: number,
+    value: number,
 };
 
 // Relative coordinates to find neighbours
@@ -31,33 +31,36 @@ const getNeighbours = (grid: Point[][], point: Point): Point[] => {
             neighbours.push(grid[point.row + direction[0]][point.col + direction[1]]);
         }
     }
+
     return neighbours;
 };
 
 class Grid {
     points: Point[][];
+
     lowPoints: Point[];
+
     basins: Point[][];
 
-    constructor(grid: number[][]) {
+    constructor (grid: number[][]) {
         this.points = this.parseToPoints(grid);
         this.lowPoints = this.findLowPoints();
         this.basins = this.findBasins();
     }
 
-    parseToPoints(grid: number[][]): Point[][] {
+    parseToPoints (grid: number[][]): Point[][] {
         return grid.map((row, rowCount) => {
             return row.map((value, colCount) => {
                 return {
-                    value: value,
-                    row: rowCount,
                     col: colCount,
+                    row: rowCount,
+                    value: value,
                 };
             });
         });
     }
 
-    findLowPoints(): Point[] {
+    findLowPoints (): Point[] {
         const lowPoints = [];
 
         for (const row of this.points) {
@@ -73,7 +76,7 @@ class Grid {
         return lowPoints;
     }
 
-    findBasins(): Point[][] {
+    findBasins (): Point[][] {
         const basins: Point[][] = [];
 
         for (const lowPoint of this.lowPoints) {
@@ -95,6 +98,7 @@ class Grid {
 
             basins.push([...seen]);
         }
+
         return basins;
     }
 }
@@ -123,5 +127,6 @@ const part2 = () => {
 
     return basinSizes.slice(0, 3).reduce((total, size) => total * size, 1);
 };
+
 console.log(`Solution 1: ${part1()}`);
 console.log(`Solution 2: ${part2()}`);

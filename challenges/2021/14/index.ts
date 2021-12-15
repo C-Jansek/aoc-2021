@@ -1,39 +1,40 @@
 import getInput from '../../../utils/getInput';
 
 type insertionPair = {
-    pair: string;
-    newPairs: string[];
-    count: number;
-    nextCount: number;
+    count: number,
+    newPairs: string[],
+    nextCount: number,
+    pair: string,
 };
 
 type countMap = {
-    [key: string]: number;
+    [key: string]: number,
 };
 
 class PolymerFormula {
     insertionRules: insertionPair[];
+
     template: string;
 
-    constructor(input: string[]) {
+    constructor (input: string[]) {
         this.template = input[0];
         this.insertionRules = this.parseInput(input.slice(1));
     }
 
-    private parseInput(input: string[]): insertionPair[] {
+    private parseInput (input: string[]): insertionPair[] {
         return input
             .map((line) => line.split(' -> '))
             .map((insertion) => {
                 return {
-                    pair: insertion[0],
-                    newPairs: [insertion[0][0] + insertion[1], insertion[1] + insertion[0][1]],
                     count: 0,
+                    newPairs: [insertion[0][0] + insertion[1], insertion[1] + insertion[0][1]],
                     nextCount: 0,
+                    pair: insertion[0],
                 };
             });
     }
 
-    calculateOptimal(steps: number): countMap {
+    calculateOptimal (steps: number): countMap {
         this.setInitialOccurences();
 
         for (let step = 0; step < steps; step++) {
@@ -43,8 +44,8 @@ class PolymerFormula {
         return this.castToCountMap();
     }
 
-    private castToCountMap(): countMap {
-        const counts: { [key: string]: number } = {};
+    private castToCountMap (): countMap {
+        const counts: { [key: string]: number, } = {};
         for (const pair of this.insertionRules) {
             for (const char of pair.pair) {
                 if (counts[char]) counts[char] += pair.count;
@@ -56,16 +57,18 @@ class PolymerFormula {
         for (const [id, count] of Object.entries(counts)) {
             counts[id] = Math.ceil(count / 2);
         }
+
         return counts;
     }
 
-    private performStep(): void {
+    private performStep (): void {
         for (const pair of this.insertionRules) {
             if (pair.count > 0) {
                 for (const newPair of pair.newPairs) {
                     const p = this.insertionRules.find((p) => p.pair === newPair);
                     if (p) p.nextCount += pair.count;
                 }
+
                 pair.count = 0;
             }
         }
@@ -77,7 +80,7 @@ class PolymerFormula {
         }
     }
 
-    private setInitialOccurences(): void {
+    private setInitialOccurences (): void {
         for (let charIndex = 0; charIndex < this.template.length - 1; charIndex++) {
             for (const rule of this.insertionRules) {
                 if (rule.pair === this.template[charIndex] + this.template[charIndex + 1]) {
