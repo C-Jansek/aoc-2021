@@ -2,12 +2,12 @@ import { assert } from 'console';
 import getInput from '../../../utils/getInput';
 
 type Packet = {
-    version: number;
-    typeId: number;
     length: number;
-    versionSum: number;
-    value: number;
     subPackets?: (Packet | null)[];
+    typeId: number;
+    value: number;
+    version: number;
+    versionSum: number;
 };
 
 const parseHexadecimal = (input: string): string => {
@@ -18,116 +18,115 @@ const parseHexadecimal = (input: string): string => {
     return output;
 };
 
-const unpack = (input: string): Packet | null => {
-    if (Number.parseInt(input) === 0) return null;
-    const version = Number.parseInt(input.slice(0, 3), 2);
-    const typeId = Number.parseInt(input.slice(3, 6), 2);
-    const versionAndTypeLength = 6;
-
-    if (typeId === 4) {
-        const valueBits = input.slice(6);
-        const valuesArray: string[] = [];
-        for (let index = 0; index - 1 < valueBits.length / 5; index++) {
-            valuesArray.push(valueBits.slice(index * 5 + 1, (index + 1) * 5));
-            if (valueBits[index * 5] === '0') {
-                break;
-            }
+const processTypeId = (subPackets: Packet[], typeId: number): number => {
+    switch (typeId) {
+        case 0: {
+            return subPackets.reduce((sum, current) => (sum += current.value), 0);
         }
-
-        const length = valuesArray.join('').length + valuesArray.length + versionAndTypeLength;
-        return {
-            version,
-            typeId,
-            length,
-            value: Number.parseInt(valuesArray.join(''), 2),
-            versionSum: version,
-        };
-    }
-
-    const dataBits = input.slice(7);
-    const lengthTypeId = input[6];
-
-    const subPackets: Packet[] = [];
-    let versionSum = 0;
-    let length = 0;
-    if (lengthTypeId === '0') {
-        const lengthTypeIdLength = 15;
-        const subPacketsTotalLength = Number.parseInt(dataBits.slice(0, lengthTypeIdLength), 2);
-
-        const subPacketBits = dataBits.slice(lengthTypeIdLength);
-
-        // Split subpackets
-        let index = 0;
-        while (index < subPacketsTotalLength) {
-            const subPacket = unpack(subPacketBits.slice(index, subPacketsTotalLength));
-            if (!subPacket) break;
-            subPackets.push(subPacket);
-            index += subPacket.length;
+        case 1: {
+            return subPackets.reduce((product, current) => (product *= current.value), 1);
         }
-        versionSum = subPackets.reduce((sum, current) => (sum += current.versionSum), version);
-
-        length = index + versionAndTypeLength + lengthTypeId.length + lengthTypeIdLength;
-    } else {
-        assert(lengthTypeId === '1');
-        if (lengthTypeId !== '1') throw new Error('Not specified lengthTypId');
-
-        const lengthTypeIdLength = 11;
-        const subPacketCount = Number.parseInt(dataBits.slice(0, lengthTypeIdLength), 2);
-
-        const subPacketBits = dataBits.slice(lengthTypeIdLength);
-
-        // Split subpackets
-        let index = 0;
-        let subPacketIndex = 0;
-        while (subPacketIndex < subPacketCount) {
-            const subPacket = unpack(subPacketBits.slice(index));
-            if (!subPacket) break;
-            subPackets.push(subPacket);
-            index += subPacket.length;
-            subPacketIndex++;
+        case 2: {
+            return subPackets.reduce(
+                (min, current) => Math.min(min, current.value),
+                Number.POSITIVE_INFINITY,
+            );
         }
+        case 3: {
+            return subPackets.reduce(
+                (max, current) => Math.max(max, current.value),
+                Number.NEGATIVE_INFINITY,
+            );
+        }
+        case 5: {
+            return subPackets[0].value > subPackets[1].value ? 1 : 0;
+        }
+        case 6: {
+            return subPackets[0].value < subPackets[1].value ? 1 : 0;
+        }
+        case 7: {
+            return subPackets[0].value === subPackets[1].value ? 1 : 0;
+        }
+    }
+    throw new Error(`Unknown typeId ${typeId}`);
+};
 
-        // Unpack subPackets
-        versionSum = subPackets.reduce((sum, current) => (sum += current.versionSum), version);
-        length = index + versionAndTypeLength + lengthTypeId.length + lengthTypeIdLength;
+const literalValue = (
+    input: string,
+    version: number,
+    typeId: number,
+    metaLength: number,
+): Packet => {
+    const dataBits = input.slice(6);
+    const valuesArray: string[] = [];
+    for (let index = 0; index - 1 < dataBits.length / 5; index++) {
+        valuesArray.push(dataBits.slice(index * 5 + 1, (index + 1) * 5));
+        if (dataBits[index * 5] === '0') {
+            break;
+        }
     }
-    let value = 0;
 
-    if (typeId === 0) {
-        value = subPackets.reduce((sum, current) => (sum += current.value), 0);
-    }
-    if (typeId === 1) {
-        value = subPackets.reduce((product, current) => (product *= current.value), 1);
-    }
-    if (typeId === 2) {
-        value = subPackets.reduce(
-            (min, current) => Math.min(min, current.value),
-            Number.POSITIVE_INFINITY,
-        );
-    }
-    if (typeId === 3) {
-        value = subPackets.reduce(
-            (max, current) => Math.max(max, current.value),
-            Number.NEGATIVE_INFINITY,
-        );
-    }
-    if (typeId === 5) {
-        value = subPackets[0].value > subPackets[1].value ? 1 : 0;
-    }
-    if (typeId === 6) {
-        value = subPackets[0].value < subPackets[1].value ? 1 : 0;
-    }
-    if (typeId === 7) {
-        value = subPackets[0].value === subPackets[1].value ? 1 : 0;
-    }
+    const length = valuesArray.join('').length + valuesArray.length + metaLength;
 
     return {
         version,
         typeId,
         length,
+        value: Number.parseInt(valuesArray.join(''), 2),
+        versionSum: version,
+    };
+};
+
+const unpack = (input: string): Packet | null => {
+    if (Number.parseInt(input) === 0) return null;
+
+    const version = Number.parseInt(input.slice(0, 3), 2);
+    const typeId = Number.parseInt(input.slice(3, 6), 2);
+    const metaLength = 6;
+
+    // Output literal Value
+    if (typeId === 4) return literalValue(input, version, typeId, metaLength);
+
+    // Initialize
+    let characterIndex = 0;
+    let subPacketIndex = 0;
+    const modeId = input[6];
+    const dataBits = input.slice(7);
+    const subPackets: Packet[] = [];
+
+    // Mode specific constants
+    const lengthTypeIdLength = modeId === '0' ? 15 : 11;
+    const subPacketBits = dataBits.slice(lengthTypeIdLength);
+    const maxCondition = Number.parseInt(dataBits.slice(0, lengthTypeIdLength), 2);
+
+    // Check next characters for subpacket
+    while (modeId === '0' ? characterIndex < maxCondition : subPacketIndex < maxCondition) {
+        const checkBits =
+            modeId === '0'
+                ? subPacketBits.slice(characterIndex, maxCondition)
+                : subPacketBits.slice(characterIndex);
+
+        const subPacket = unpack(checkBits);
+        if (!subPacket) break;
+
+        subPackets.push(subPacket);
+
+        characterIndex += subPacket.length;
+        subPacketIndex++;
+    }
+
+    // Unpack subPackets
+    const length = characterIndex + metaLength + modeId.length + lengthTypeIdLength;
+    const value = processTypeId(subPackets, typeId);
+    const versionSum = subPackets.reduce((sum, current) => (sum += current.versionSum), version);
+
+    return {
+        length,
         subPackets,
-        versionSum,
+        typeId,
         value,
+        version,
+        versionSum,
     };
 };
 
@@ -145,7 +144,6 @@ const part2 = () => {
 
     const binaryData = parseHexadecimal(input);
     const packet = unpack(binaryData);
-    console.log(packet);
 
     return packet?.value ?? -1;
 };
