@@ -4,6 +4,7 @@ import getInput from '../../../utils/getInput';
 type Packet = {
     version: string;
     typeId: string;
+    length: number;
     versionSum: number;
     literalValue?: number;
     subPackets?: (Packet | null)[];
@@ -14,17 +15,20 @@ const parseHexadecimal = (input: string): string => {
     for (const char of input) {
         output += ('0000' + Number.parseInt(char, 16).toString(2)).slice(-4);
     }
-    console.log(output);
+    // console.log(output);
     return output;
 };
 
-const unpack = (input: string): Packet => {
-    console.log('------\nunpack', input);
+const unpack = (input: string): Packet | null => {
+    if (Number.parseInt(input) === 0) return null;
+    // console.log(`------unpack\n${input}`);
     const version = input.slice(0, 3);
     const typeId = input.slice(3, 6);
 
     if (Number.parseInt(typeId, 2) === 4) {
-        console.log({ version, typeId });
+        // console.log({ version, typeId });
+        // console.log('\t\tV');
+
         const valueBits = input.slice(6);
         const valuesArray: string[] = [];
         for (let index = 0; index - 1 < valueBits.length / 5; index++) {
@@ -33,9 +37,21 @@ const unpack = (input: string): Packet => {
                 break;
             }
         }
+
+        const length =
+            valuesArray.join('').length + valuesArray.length + version.length + typeId.length;
+        // console.log(valuesArray.join('').length, version.length, typeId.length);
+        // console.log({
+        //     version,
+        //     typeId,
+        //     length,
+        //     literalValue: Number.parseInt(valuesArray.join(''), 2),
+        //     versionSum: Number.parseInt(version, 2),
+        // });
         return {
             version,
             typeId,
+            length,
             literalValue: Number.parseInt(valuesArray.join(''), 2),
             versionSum: Number.parseInt(version, 2),
         };
@@ -43,30 +59,35 @@ const unpack = (input: string): Packet => {
 
     const dataBits = input.slice(7);
     const lengthTypeId = input[6];
-    console.log({ version, typeId, lengthTypeId });
 
     if (lengthTypeId === '0') {
-        const subPacketsTotalLength = Number.parseInt(dataBits.slice(0, 15), 2);
-        const subPacketBits = dataBits.slice(15);
-        const subPacketStrings = [];
+        const lengthTypeIdLength = 15;
+        const subPacketsTotalLength = Number.parseInt(dataBits.slice(0, lengthTypeIdLength), 2);
+        // console.log({ version, typeId, lengthTypeId, subPacketsTotalLength });
+
+        const subPacketBits = dataBits.slice(lengthTypeIdLength);
+        const subPackets: Packet[] = [];
 
         // Split subpackets
-        subPacketStrings.push(subPacketBits.slice(0, subPacketsTotalLength % 16));
-        for (let index = subPacketsTotalLength % 16; index < subPacketsTotalLength; index += 16) {
-            subPacketStrings.push(subPacketBits.slice(index, index + 16));
+        let index = 0;
+        while (index < subPacketsTotalLength) {
+            const subPacket = unpack(subPacketBits.slice(index, subPacketsTotalLength));
+            if (!subPacket) break;
+            subPackets.push(subPacket);
+            index += subPacket.length;
         }
-        console.log({ subPacketStrings });
-
-        // Unpack subPackets
-        const subPackets = subPacketStrings.map((subPacketString) => unpack(subPacketString));
         const versionSum = subPackets.reduce(
             (sum, current) => (sum += current.versionSum),
             Number.parseInt(version, 2),
         );
 
+        const length =
+            index + version.length + typeId.length + lengthTypeId.length + lengthTypeIdLength;
+
         return {
             version,
             typeId,
+            length,
             subPackets,
             versionSum,
         };
@@ -74,31 +95,40 @@ const unpack = (input: string): Packet => {
         assert(lengthTypeId === '1');
         if (lengthTypeId !== '1') throw new Error('Not specified lengthTypId');
 
-        const subPacketCount = Number.parseInt(dataBits.slice(0, 11), 2);
+        const lengthTypeIdLength = 11;
+        const subPacketCount = Number.parseInt(dataBits.slice(0, lengthTypeIdLength), 2);
+        // console.log({ version, typeId, lengthTypeId, subPacketCount });
 
-        let subPacketBits = dataBits.slice(11);
-        while (subPacketBits.slice(-subPacketCount) === '0'.repeat(subPacketCount)) {
-            subPacketBits = subPacketBits.slice(0, -subPacketCount);
-        }
+        const subPacketBits = dataBits.slice(lengthTypeIdLength);
+        const subPackets: Packet[] = [];
 
-        const subPacketLength = Math.floor(subPacketBits.length / subPacketCount);
+        // while (subPacketBits.slice(-subPacketCount) === '0'.repeat(subPacketCount)) {
+        //     subPacketBits = subPacketBits.slice(0, -subPacketCount);
+        // }
 
         // Split subpackets
-        const subPacketStrings = [];
-        for (let index = 0; index < subPacketLength * subPacketCount; index += subPacketLength) {
-            subPacketStrings.push(subPacketBits.slice(index, index + subPacketLength));
+        let index = 0;
+        let subPacketIndex = 0;
+        while (subPacketIndex < subPacketCount) {
+            const subPacket = unpack(subPacketBits.slice(index));
+            if (!subPacket) break;
+            subPackets.push(subPacket);
+            index += subPacket.length;
+            subPacketIndex++;
         }
-        console.log({ subPacketStrings });
 
         // Unpack subPackets
-        const subPackets = subPacketStrings.map((subPacketString) => unpack(subPacketString));
         const versionSum = subPackets.reduce(
             (sum, current) => (sum += current.versionSum),
             Number.parseInt(version, 2),
         );
+        const length =
+            index + version.length + typeId.length + lengthTypeId.length + lengthTypeIdLength;
+
         return {
             version,
             typeId,
+            length,
             subPackets,
             versionSum,
         };
@@ -106,13 +136,13 @@ const unpack = (input: string): Packet => {
 };
 
 const part1 = () => {
-    // const input = getInput('2021', '16').split('\n')[0];
+    const input = getInput('2021', '16').split('\n')[0];
     // const input = 'D2FE28';
-    const input = '620080001611562C8802118E34';
+    // const input = 'A0016C880162017C3686B18A3D4780';
 
     const binaryData = parseHexadecimal(input);
     const packet = unpack(binaryData);
-    console.log(packet);
+    // console.log(packet);
 
     // const input2 = '38006F45291200';
 
@@ -126,7 +156,7 @@ const part1 = () => {
     // const packets3 = unpack(binaryData3);
     // console.log(packets3);
 
-    return packet.versionSum;
+    return packet?.versionSum ?? -1;
 };
 
 const part2 = () => {
