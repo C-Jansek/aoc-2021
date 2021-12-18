@@ -1,37 +1,5 @@
 import _ from 'lodash';
-import util from 'util';
 import getInput from '../../../utils/getInput';
-
-// const parseInput = (input: string[]) => {
-//     return input.map((line) => parseLine(line));
-// };
-
-// const parseLine = (line: string): any => {
-//     if (line.length < 5) return Number(line);
-//     if (line.length === 5) {
-//         return line
-//             .slice(1, -1)
-//             .split(',')
-//             .map((value) => Number(value));
-//     }
-
-//     const snailfishNumbers = [];
-//     let depth = 0;
-//     let index = 0;
-//     for (const char of line) {
-//         if (char === '[') depth++;
-//         else if (char === ']') depth--;
-//         if (depth === 1 && char === ',') {
-//             snailfishNumbers.push(
-//                 parseLine(line.slice(1, index)),
-//                 parseLine(line.slice(index + 1, -1)),
-//             );
-//             break;
-//         }
-//         index++;
-//     }
-//     return snailfishNumbers;
-// };
 
 const addSnailfishNumbers = (a: string, b: string): string => {
     const combinedNumbers = `[${a},${b}]`;
@@ -58,30 +26,15 @@ const maxNumber = (snailfishNumber: string): number => {
 
 const reduceSnailfishNumber = (combined: string): any => {
     let reduced = combined;
-    // console.log('reduce', reduced);
-    let count = 0;
-    while ((maxDepth(reduced) > 4 || maxNumber(reduced) > 9) && count < 8) {
-        // while (maxNumber(reduced) > 9) {
-        // console.log(
-        //     '\n\nreduce ROUND -------------------------------\n',
-        //     util.inspect(reduced, false, null, true),
-        // );
+    while (maxDepth(reduced) > 4 || maxNumber(reduced) > 9) {
         if (maxDepth(reduced) > 4) {
-            // console.log('explode');
             reduced = explodeSnailfishNumber(reduced);
-            // count++;
-            // console.log(maxDepth(reduced) >= 4, maxNumber(reduced) > 9, count < 2);
             continue;
         }
         if (maxNumber(reduced) > 9) {
-            // console.log('split');
             reduced = splitSnailfishNumber(reduced);
         }
-        // console.log(maxDepth(reduced) >= 4, maxNumber(reduced) > 9, count < 2);
-        // count++;
     }
-
-    // console.log('okay now??', util.inspect(reduced, false, null, true));
     return reduced;
 };
 
@@ -105,9 +58,6 @@ const splitSnailfishNumber = (combined: string): any => {
     }
 
     const [first, second] = splitLine(combined);
-
-    // console.log(first, second);
-    // console.log(maxNumber(first), maxNumber(second));
 
     if (maxNumber(first) > 9) {
         const split = splitSnailfishNumber(first);
@@ -133,13 +83,10 @@ const explodeSnailfishNumber = (combined: string): string => {
             first = _.get(combined.slice(explodeStart).match(/\[(\d+),/g), 0)?.slice(1, -1);
             second = _.get(combined.slice(explodeStart).match(/,(\d+)]/g), 0)?.slice(1, -1);
             explodeEnd = explodeStart + combined.slice(explodeStart).indexOf(']') + 1;
-            // console.log({ depth, first, second });
             break;
         }
         explodeStart++;
     }
-    // console.log(first);
-    // console.log(second);
 
     // Go to the Left
     const reversedBegin = combined
@@ -179,37 +126,19 @@ const explodeSnailfishNumber = (combined: string): string => {
         rightIndex++;
     }
 
-    // console.log(leftCharStart, leftCharEnd, rightCharStart, rightCharEnd);
-    // console.log(
-    //     combined.slice(leftCharStart, leftCharEnd),
-    //     combined.slice(rightCharStart, rightCharEnd),
-    // );
-
     let output = '';
     if (leftCharStart) {
-        // console.log('out 1', output);
         output += combined.slice(0, leftCharStart);
-        // console.log('out 2', output);
         output += `${Number(combined.slice(leftCharStart, leftCharEnd)) + Number(first)}`;
-        // console.log('out 3', output);
     }
     output += `${combined.slice(leftCharEnd, explodeStart)}`;
-    // console.log('out 4', output);
     output += `0`;
-    // console.log('out 5', output);
     output += `${combined.slice(explodeEnd, rightCharStart)}`;
-    // console.log('out 6', output);
 
     if (rightCharEnd) {
         output += `${Number(combined.slice(rightCharStart, rightCharEnd)) + Number(second)}`;
-        // console.log('out 7', output);
         output += combined.slice(rightCharEnd);
-        // console.log('out 8', output);
     }
-
-    // console.log(combined);
-    // console.log('\t V');
-    // console.log(output);
 
     return output;
 };
@@ -228,34 +157,9 @@ const part1 = () => {
         .split('\n')
         .filter((line) => line !== '');
 
-    // const input = ['[[[[[9,8],1],2],3],4]'];
-    // const input = ['[[[[0,7],4],[15,[0,13]]],[1,1]]'];
-    // const input = ['[[[[[9,8],1],2],3],4]'];
-    // const input = ['[[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]'];
-    // const input = ['[[[[[4,3],4],4],[7,[[8,4],9]]]', '[1,1]]'];
-    // const input = [
-    //     '[[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]',
-    //     '[[[5,[2,8]],4],[5,[[9,9],0]]]',
-    //     '[6,[[[6,2],[5,6]],[[7,6],[4,7]]]]',
-    //     '[[[6,[0,7]],[0,9]],[4,[9,[9,0]]]]',
-    //     '[[[7,[6,4]],[3,[1,3]]],[[[5,5],1],9]]',
-    //     '[[6,[[7,3],[3,2]]],[[[3,8],[5,7]],4]]',
-    //     '[[[[5,4],[7,7]],8],[[8,3],8]]',
-    //     '[[9,3],[[9,9],[6,[4,9]]]]',
-    //     '[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]',
-    //     '[[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]]',
-    // ];
-    // const input = ['[1]', '[2]', '[3]'];
-
     const homework = input.reduce((total, current) => addSnailfishNumbers(total, current));
 
-    // const homework = reduceSnailfishNumber(input[0]);
-
-    console.log('homework:\n', util.inspect(homework, false, null, true));
-
-    const magnitude = calculateMagnitude(homework);
-
-    return magnitude;
+    return calculateMagnitude(homework);
 };
 
 const part2 = () => {
@@ -263,18 +167,6 @@ const part2 = () => {
         .split('\n')
         .filter((line) => line !== '');
 
-    // const input = [
-    //     '[[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]',
-    //     '[[[5,[2,8]],4],[5,[[9,9],0]]]',
-    //     '[6,[[[6,2],[5,6]],[[7,6],[4,7]]]]',
-    //     '[[[6,[0,7]],[0,9]],[4,[9,[9,0]]]]',
-    //     '[[[7,[6,4]],[3,[1,3]]],[[[5,5],1],9]]',
-    //     '[[6,[[7,3],[3,2]]],[[[3,8],[5,7]],4]]',
-    //     '[[[[5,4],[7,7]],8],[[8,3],8]]',
-    //     '[[9,3],[[9,9],[6,[4,9]]]]',
-    //     '[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]',
-    //     '[[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]]',
-    // ];
     let topMagnitude = 0;
     for (const first of input) {
         for (const second of input) {
