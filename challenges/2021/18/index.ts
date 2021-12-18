@@ -59,21 +59,26 @@ const maxNumber = (snailfishNumber: string): number => {
 const reduceSnailfishNumber = (combined: string): any => {
     let reduced = combined;
     console.log('reduce', reduced);
-    while (maxDepth(reduced) >= 4 || maxNumber(reduced) > 9) {
+    let count = 0;
+    while ((maxDepth(reduced) > 4 || maxNumber(reduced) > 9) && count < 8) {
         // while (maxNumber(reduced) > 9) {
         console.log(
             '\n\nreduce ROUND -------------------------------\n',
             util.inspect(reduced, false, null, true),
         );
-        if (maxDepth(combined) >= 4) {
+        if (maxDepth(reduced) > 4) {
             console.log('explode');
-            combined = explodeSnailfishNumber(combined);
+            reduced = explodeSnailfishNumber(reduced);
+            count++;
+            console.log(maxDepth(reduced) >= 4, maxNumber(reduced) > 9, count < 2);
             continue;
         }
         if (maxNumber(reduced) > 9) {
             console.log('split');
             reduced = splitSnailfishNumber(reduced);
         }
+        console.log(maxDepth(reduced) >= 4, maxNumber(reduced) > 9, count < 2);
+        count++;
     }
 
     console.log('okay now??', util.inspect(reduced, false, null, true));
@@ -116,30 +121,51 @@ const splitSnailfishNumber = (combined: string): any => {
 
 const explodeSnailfishNumber = (combined: string): string => {
     let depth = 0;
-    let explodeIndex = 0;
+    let explodeStart = 0;
     let first: any;
     let second: any;
-    let endStart: any;
+    let explodeEnd: any;
 
     for (const char of combined) {
         if (char === '[') depth++;
         else if (char === ']') depth--;
-        if (depth === 4) {
-            first = _.get(combined.slice(explodeIndex).match(/\[(\d+),/g), 0)?.slice(1, -1);
-            second = _.get(combined.slice(explodeIndex).match(/,(\d+)]/g), 0)?.slice(1, -1);
-            endStart = explodeIndex + combined.slice(explodeIndex).indexOf(']') + 1;
+        if (depth === 5) {
+            first = _.get(combined.slice(explodeStart).match(/\[(\d+),/g), 0)?.slice(1, -1);
+            second = _.get(combined.slice(explodeStart).match(/,(\d+)]/g), 0)?.slice(1, -1);
+            explodeEnd = explodeStart + combined.slice(explodeStart).indexOf(']') + 1;
+            console.log({ depth, first, second });
             break;
         }
-        explodeIndex++;
+        explodeStart++;
     }
     console.log(first);
     console.log(second);
 
+    // Go to the Left
+    const reversedBegin = combined
+        .slice(0, explodeStart)
+        .split('')
+        .reverse()
+        .join('');
+    let leftCharEnd = 0;
+    let leftCharStart;
+    let leftIndex = explodeStart;
+    for (const char of reversedBegin) {
+        if (char === ',') {
+            leftCharEnd = leftIndex - 1;
+        }
+        if (leftCharEnd && char === '[') {
+            leftCharStart = leftIndex;
+            break;
+        }
+        leftIndex--;
+    }
+
     // Go to the right
     let rightCharEnd;
     let rightCharStart;
-    let rightIndex = endStart;
-    for (const char of combined.slice(endStart)) {
+    let rightIndex = explodeEnd;
+    for (const char of combined.slice(explodeEnd)) {
         if (char === ',') {
             rightCharStart = rightIndex + 1;
         }
@@ -150,17 +176,35 @@ const explodeSnailfishNumber = (combined: string): string => {
         rightIndex++;
     }
 
-    const middle = `0${combined.slice(endStart, rightCharStart)}${Number(
-        combined.slice(rightCharStart, rightCharEnd),
-    ) + Number(second)}`;
+    let output = '';
+    if (leftCharStart) {
+        console.log('out 1', output);
+        output += combined.slice(0, leftCharStart);
+        console.log('out 2', output);
+        console.log(combined.slice(leftCharStart, leftCharEnd), first);
+        console.log(Number(combined.slice(leftCharStart, leftCharEnd)), Number(first));
+        output += `${Number(combined.slice(leftCharStart, leftCharEnd)) + Number(first)}`;
+        console.log('out 3', output);
+    }
+    output += `${combined.slice(leftCharEnd, explodeStart)}`;
+    console.log('out 4', output);
+    output += `0`;
+    console.log('out 5', output);
+    output += `${combined.slice(explodeEnd, rightCharStart)}`;
+    console.log('out 6', output);
 
-    const front = combined.slice(0, explodeIndex);
-    const end = combined.slice(rightCharEnd);
+    if (rightCharEnd) {
+        output += `${Number(combined.slice(rightCharStart, rightCharEnd)) + Number(second)}`;
+        console.log('out 7', output);
+        output += combined.slice(rightCharEnd);
+        console.log('out 8', output);
+    }
 
-    const output = `${front}${middle}${end}`;
+    console.log(combined);
+    console.log('\t V');
     console.log(output);
 
-    throw new Error('no return?');
+    return output;
 };
 
 const part1 = () => {
@@ -170,7 +214,8 @@ const part1 = () => {
 
     // const input = ['[[[[[9,8],1],2],3],4]'];
     // const input = ['[[[[0,7],4],[15,[0,13]]],[1,1]]'];
-    const input = ['[[[[[9,8],1],2],3],4]'];
+    // const input = ['[[[[[9,8],1],2],3],4]'];
+    const input = ['[[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]'];
 
     // const homework = snailfishNumbers.reduce((total, current) =>
     //     addSnailfishNumbers(total, current),
