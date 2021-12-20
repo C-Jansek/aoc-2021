@@ -5,10 +5,12 @@ type Pixel = '#' | '.';
 class Image {
     grid: Pixel[][];
     imageEnhancement: Pixel[];
+    state: number;
 
     constructor(input: string[]) {
         this.grid = this.parseImage(input[1]);
         this.imageEnhancement = input[0].split('').map((value) => (value === '#' ? '#' : '.'));
+        this.state = 0;
     }
 
     parseImage(input: string): Pixel[][] {
@@ -17,7 +19,6 @@ class Image {
             .filter((line) => line !== '')
             .map((row) =>
                 row.split('').map((pixel) => {
-                    if (pixel !== '#' && pixel != '.') throw new Error('Not a pixel');
                     return pixel === '#' ? '#' : '.';
                 }),
             );
@@ -32,33 +33,18 @@ class Image {
                 const enhanceIndex = Number.parseInt(
                     this.getNeighbours(row, col)
                         .flat(1)
-                        .map((pixel) => (pixel === '#' ? 1 : 0))
+                        .map((p) => (p === '#' ? 1 : 0))
                         .join(''),
                     2,
                 );
                 const enhancedPixel = this.imageEnhancement[enhanceIndex];
-                // if (row === 2 - 1 && col === 4 - 1) {
-                //     console.log(
-                //         'Middle:',
-                //         this.getNeighbours(row, col).flat(1),
-                //         this.getNeighbours(row, col)
-                //             .flat(1)
-                //             .map((pixel) => (pixel === '#' ? 1 : 0))
-                //             .join(''),
-                //         enhanceIndex,
-                //         enhancedPixel,
-                //     );
-                // }
-                // console.log(this.imageEnhancement.slice(enhanceIndex - 2, enhanceIndex + 3));
-                // if (this.imageEnhancement.slice(enhanceIndex - 2, enhanceIndex + 3).length == 0) {
-                //     console.log(row, col, enhanceIndex, enhancedPixel);
-                // }
                 newRow.push(enhancedPixel);
             }
             newImage.push(newRow);
         }
 
         this.grid = newImage;
+        this.state++;
         return newImage;
     }
 
@@ -66,7 +52,7 @@ class Image {
         if (0 <= row && row < this.grid.length && 0 <= col && col < this.grid[0].length) {
             return this.grid[row][col];
         }
-        return '.';
+        return this.state % 2 === 0 ? '.' : '#';
     }
 
     getNeighbours(rowIndex: number, colIndex: number): Pixel[] {
@@ -94,22 +80,22 @@ const part1 = () => {
     const image = new Image(input);
 
     image.enhance();
-    // image.printImage();
-    console.log('\n---------------');
     image.enhance();
-
-    image.printImage();
 
     return image.countLightPixels();
 };
 
 const part2 = () => {
-    const input = getInput('2021', '20').split('\n');
+    const input = getInput('2021', '20').split('\n\n');
 
-    return;
+    const image = new Image(input);
+
+    for (let n = 0; n < 50; n++) {
+        image.enhance();
+    }
+
+    return image.countLightPixels();
 };
 
 console.log(`Solution 1: ${part1()}`);
-// 5705 wrong
-
 console.log(`Solution 2: ${part2()}`);
