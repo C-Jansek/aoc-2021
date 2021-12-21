@@ -64,11 +64,13 @@ const part2 = () => {
         .split('\n')
         .filter((line) => line !== '');
 
-    const players = input.map((player) => {
+    const startings = input.map((p) => Number(p.split(': ')[1]));
+
+    const players = input.map((player, index) => {
         const starting = Number(player.split(': ')[1]);
         const totalWins = 0;
         const activeScores: { [key: string]: number } = {};
-        activeScores[`0_${starting}`] = 1;
+        activeScores[`0_${starting}_0_${startings[(index + 1) % 2]}`] = 1;
         return {
             position: starting,
             totalWins,
@@ -80,24 +82,51 @@ const part2 = () => {
     let tripleDieRoll = 0;
     while (players.every((p) => Object.values(p.activeScores).length > 0)) {
         const player = players[tripleDieRoll % 2];
+        const otherPlayer = players[(tripleDieRoll + 1) % 2];
         const newActiveScores: { [key: string]: number } = {};
+        const otherNewActiveScores: { [key: string]: number } = {};
+
         for (const [active, count] of Object.entries(player.activeScores)) {
             for (const dieRoll of possibleDieces) {
                 const thisTotal = dieRoll.reduce((total, current) => total + current, 0);
 
+                const otherScore = Number(active.split('_')[2]);
+                const otherPosition = Number(active.split('_')[3]);
                 let position = Number(active.split('_')[1]) + thisTotal;
                 while (position > 10) position -= 10;
                 const newScore = Number(active.split('_')[0]) + position;
                 if (newScore >= 21) player.totalWins += count;
-                else if (newActiveScores[`${newScore}_${position}`]) {
-                    newActiveScores[`${newScore}_${position}`] += count;
+                else if (
+                    newActiveScores[`${newScore}_${position}_${otherScore}_${otherPosition}`]
+                ) {
+                    newActiveScores[
+                        `${newScore}_${position}_${otherScore}_${otherPosition}`
+                    ] += count;
                 } else {
-                    newActiveScores[`${newScore}_${position}`] = count;
+                    newActiveScores[
+                        `${newScore}_${position}_${otherScore}_${otherPosition}`
+                    ] = count;
+                }
+
+                if (newScore >= 21) {
+                    continue;
+                } else if (
+                    otherNewActiveScores[`${otherScore}_${otherPosition}_${newScore}_${position}`]
+                ) {
+                    otherNewActiveScores[
+                        `${otherScore}_${otherPosition}_${newScore}_${position}`
+                    ] += count;
+                } else {
+                    otherNewActiveScores[
+                        `${otherScore}_${otherPosition}_${newScore}_${position}`
+                    ] = count;
                 }
             }
         }
         player.activeScores = newActiveScores;
-        console.log(player);
+        otherPlayer.activeScores = otherNewActiveScores;
+
+        // console.log(player);
         tripleDieRoll++;
         console.log(tripleDieRoll);
     }
