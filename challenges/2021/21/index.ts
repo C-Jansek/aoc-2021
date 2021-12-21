@@ -27,36 +27,29 @@ const part1 = () => {
     return (players.find((p) => p.totalScore < 1000)?.totalScore || 0) * dieRoll;
 };
 
-const generatePossibilities = (): number[][] => {
-    return [
-        [1, 1, 1],
-        [1, 1, 2],
-        [1, 1, 3],
-        [1, 2, 1],
-        [1, 2, 2],
-        [1, 2, 3],
-        [1, 3, 1],
-        [1, 3, 2],
-        [1, 3, 3],
-        [2, 1, 1],
-        [2, 1, 2],
-        [2, 1, 3],
-        [2, 2, 1],
-        [2, 2, 2],
-        [2, 2, 3],
-        [2, 3, 1],
-        [2, 3, 2],
-        [2, 3, 3],
-        [3, 1, 1],
-        [3, 1, 2],
-        [3, 1, 3],
-        [3, 2, 1],
-        [3, 2, 2],
-        [3, 2, 3],
-        [3, 3, 1],
-        [3, 3, 2],
-        [3, 3, 3],
-    ];
+/**
+ * Generate all possible series of `totalRolls` dice throws
+ * with lowest roll `minRoll` and highest roll `maxRoll`.
+ */
+const generatePossibilities = (totalRolls: number, minRoll = 1, maxRoll = 3): number[][] => {
+    if (minRoll > maxRoll) throw new Error('Should have minRoll <= maxRoll');
+
+    // Generate list with integers from minRoll to maxRoll: [minRoll, minRoll + 1 ,..., maxRoll];
+    if (totalRolls === 1) {
+        const rolls = [];
+        for (let index = minRoll; index <= maxRoll; index++) {
+            rolls.push([index]);
+        }
+        return rolls;
+    }
+
+    // Generate list that is one shorter, and add all possible rolls to each of the possibilities
+    const rolls = generatePossibilities(totalRolls - 1, minRoll, maxRoll);
+    const newRolls = [];
+    for (let index = minRoll; index <= maxRoll; index++) {
+        newRolls.push(...rolls.map((r) => [...r, index]));
+    }
+    return newRolls;
 };
 
 const part2 = () => {
@@ -77,7 +70,7 @@ const part2 = () => {
             activeScores,
         };
     });
-    const possibleDieces = generatePossibilities();
+    const possibleDieces = generatePossibilities(3, 1, 3);
 
     let tripleDieRoll = 0;
     while (players.every((p) => Object.values(p.activeScores).length > 0)) {
@@ -126,9 +119,7 @@ const part2 = () => {
         player.activeScores = newActiveScores;
         otherPlayer.activeScores = otherNewActiveScores;
 
-        // console.log(player);
         tripleDieRoll++;
-        console.log(tripleDieRoll);
     }
     return players.sort((a, b) => b.totalWins - a.totalWins)[0].totalWins;
 };
