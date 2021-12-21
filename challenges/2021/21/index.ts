@@ -1,30 +1,37 @@
+import { assert } from 'console';
 import getInput from '../../../utils/getInput';
 
-const part1 = () => {
-    const input = getInput('2021', '21')
-        .split('\n')
-        .filter((line) => line !== '');
+type UnfinishedGameStates = {
+    [key: string]: number;
+};
 
-    const players = input.map((player) => {
-        const starting = Number(player.split(': ')[1]);
-        const totalScore = 0;
+type PlayerState = {
+    position: number;
+    score: number;
+};
+
+const parseInputToPlayers = (
+    input: string[],
+): { totalWins: number; unfinishedGames: UnfinishedGameStates }[] => {
+    const playerStartStates = input.map((player) => {
+        const startingPosition = Number(player.split(': ')[1]);
         return {
-            position: starting,
-            totalScore,
+            score: 0,
+            position: startingPosition,
         };
     });
-    let tripleDieRoll = 0;
-    let dieRoll = 0;
-    while (players.every((p) => p.totalScore < 1000)) {
-        dieRoll += 3;
-        const totalThisRound = dieRoll * 3 - 3;
-        let position = players[tripleDieRoll % 2].position + totalThisRound;
-        while (position > 10) position -= 10;
-        players[tripleDieRoll % 2].position = position;
-        players[tripleDieRoll % 2].totalScore += position;
-        tripleDieRoll++;
-    }
-    return (players.find((p) => p.totalScore < 1000)?.totalScore || 0) * dieRoll;
+
+    return playerStartStates.map((player, index) => {
+        const totalWins = 0;
+        const unfinishedGames: UnfinishedGameStates = {};
+        const gameHash = hashGameState([player, playerStartStates[(index + 1) % 2]]);
+
+        unfinishedGames[gameHash] = 1;
+        return {
+            totalWins,
+            unfinishedGames,
+        };
+    });
 };
 
 /**
@@ -52,77 +59,115 @@ const generatePossibilities = (totalRolls: number, minRoll = 1, maxRoll = 3): nu
     return newRolls;
 };
 
+const hashGameState = (players: PlayerState[]): string => {
+    return players.reduce((hash, p) => (hash += `${p.position}_${p.score}|`), '');
+};
+
+const decryptGameState = (gameHash: string): PlayerState[] => {
+    return gameHash
+        .split('|')
+        .filter((p) => p !== '')
+        .map((playerHash) => {
+            return {
+                position: Number(playerHash.split('_')[0]),
+                score: Number(playerHash.split('_')[1]),
+            };
+        });
+};
+
+const part1 = () => {
+    const input = getInput('2021', '21')
+        .split('\n')
+        .filter((line) => line !== '');
+
+    const players = input.map(
+        (player): PlayerState => {
+            const starting = Number(player.split(': ')[1]);
+            const score = 0;
+            return {
+                position: starting,
+                score,
+            };
+        },
+    );
+
+    let dieRoll = 0;
+    while (players.every((p) => p.score < 1000)) {
+        // Roll next 3 dice
+        const totalThisRound = dieRoll + 1 + dieRoll + 2 + dieRoll + 3;
+
+        // Calculate player position
+        const playerNo = (dieRoll / 3) % 2;
+        let position = players[playerNo].position + totalThisRound;
+        while (position > 10) position -= 10;
+
+        // Set stats
+        players[playerNo].position = position;
+        players[playerNo].score += position;
+
+        // Increment die
+        dieRoll += 3;
+    }
+    return (players.find((p) => p.score < 1000)?.score || 0) * dieRoll;
+};
+
 const part2 = () => {
     const input = getInput('2021', '21')
         .split('\n')
         .filter((line) => line !== '');
 
-    const startings = input.map((p) => Number(p.split(': ')[1]));
-
-    const players = input.map((player, index) => {
-        const starting = Number(player.split(': ')[1]);
-        const totalWins = 0;
-        const activeScores: { [key: string]: number } = {};
-        activeScores[`0_${starting}_0_${startings[(index + 1) % 2]}`] = 1;
-        return {
-            position: starting,
-            totalWins,
-            activeScores,
-        };
-    });
     const possibleDieces = generatePossibilities(3, 1, 3);
 
-    let tripleDieRoll = 0;
-    while (players.every((p) => Object.values(p.activeScores).length > 0)) {
-        const player = players[tripleDieRoll % 2];
-        const otherPlayer = players[(tripleDieRoll + 1) % 2];
-        const newActiveScores: { [key: string]: number } = {};
-        const otherNewActiveScores: { [key: string]: number } = {};
+    const players = parseInputToPlayers(input);
 
-        for (const [active, count] of Object.entries(player.activeScores)) {
+    let turn = 0;
+    while (players.some((p) => Object.values(p.unfinishedGames).length > 0)) {
+        // Get players
+        const p1 = players[turn % 2];
+        const p2 = players[(turn + 1) % 2];
+        // Set new UnfinishedGameStates
+        const p1ugs: UnfinishedGameStates = {};
+        const p2ugs: UnfinishedGameStates = {};
+
+        // For every possible current unfinishedGame
+        for (const [gameHash, amount] of Object.entries(p1.unfinishedGames)) {
             for (const dieRoll of possibleDieces) {
+                // Sum all dice throws
                 const thisTotal = dieRoll.reduce((total, current) => total + current, 0);
 
-                const otherScore = Number(active.split('_')[2]);
-                const otherPosition = Number(active.split('_')[3]);
-                let position = Number(active.split('_')[1]) + thisTotal;
-                while (position > 10) position -= 10;
-                const newScore = Number(active.split('_')[0]) + position;
-                if (newScore >= 21) player.totalWins += count;
-                else if (
-                    newActiveScores[`${newScore}_${position}_${otherScore}_${otherPosition}`]
-                ) {
-                    newActiveScores[
-                        `${newScore}_${position}_${otherScore}_${otherPosition}`
-                    ] += count;
-                } else {
-                    newActiveScores[
-                        `${newScore}_${position}_${otherScore}_${otherPosition}`
-                    ] = count;
-                }
+                // Get current game state
+                const gameState = decryptGameState(gameHash);
+                const p1gs = gameState[0];
+                const p2gs = gameState[1];
 
-                if (newScore >= 21) {
-                    continue;
-                } else if (
-                    otherNewActiveScores[`${otherScore}_${otherPosition}_${newScore}_${position}`]
-                ) {
-                    otherNewActiveScores[
-                        `${otherScore}_${otherPosition}_${newScore}_${position}`
-                    ] += count;
+                // Move player 1 forward
+                p1gs.position = p1gs.position + thisTotal;
+                // Wrap around if past position 10
+                if (p1gs.position > 10) p1gs.position %= 10;
+
+                p1gs.score = p1gs.score + p1gs.position;
+
+                // Update gameState
+                if (p1gs.score >= 21) {
+                    p1.totalWins += amount;
+                } else if (p1ugs[hashGameState([p1gs, p2gs])]) {
+                    p1ugs[hashGameState([p1gs, p2gs])] += amount;
+                    p2ugs[hashGameState([p2gs, p1gs])] += amount;
                 } else {
-                    otherNewActiveScores[
-                        `${otherScore}_${otherPosition}_${newScore}_${position}`
-                    ] = count;
+                    p1ugs[hashGameState([p1gs, p2gs])] = amount;
+                    p2ugs[hashGameState([p2gs, p1gs])] = amount;
                 }
             }
         }
-        player.activeScores = newActiveScores;
-        otherPlayer.activeScores = otherNewActiveScores;
+        // Update unfinished games
+        p1.unfinishedGames = p1ugs;
+        p2.unfinishedGames = p2ugs;
 
-        tripleDieRoll++;
+        turn++;
     }
-    return players.sort((a, b) => b.totalWins - a.totalWins)[0].totalWins;
+    // Return total wins of the player with the most wins
+    return Math.max(...players.map((p) => p.totalWins));
 };
-196186007;
+
 console.log(`Solution 1: ${part1()}`);
 console.log(`Solution 2: ${part2()}`);
