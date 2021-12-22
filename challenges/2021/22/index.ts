@@ -1,6 +1,6 @@
 import { assert } from 'console';
 import { inRange, intersection } from 'lodash';
-import { Box3, InstancedInterleavedBuffer, Vector3 } from 'three';
+import { Box3, InstancedInterleavedBuffer, Plane, Vector3 } from 'three';
 import getInput from '../../../utils/getInput';
 
 type Point = {
@@ -23,17 +23,14 @@ type InstructionId = {
 
 const part1 = () => {};
 
-const part2 = () => {
-    const input = getInput('2021', '22')
-        .split('\n')
-        .filter((line) => line !== '');
-
-    const instructions: InstructionId[] = [];
+const parseInstructions = (input: string[]) => {
     let id = 0;
+    const instructions: InstructionId[] = [];
 
-    const xValues = new Set<number>();
-    const yValues = new Set<number>();
-    const zValues = new Set<number>();
+    let yMin;
+    let yMax;
+    let zMin;
+    let zMax;
 
     for (const instruction of input) {
         const state = !!instruction.match('on');
@@ -41,15 +38,6 @@ const part2 = () => {
         if (!instrs) throw new Error('No Coords');
 
         const coords = instrs.map((inst) => inst.split('..').map((value) => Number(value)));
-
-        xValues.add(coords[0][0]);
-        xValues.add(coords[0][1] + 1);
-
-        yValues.add(coords[1][0]);
-        yValues.add(coords[1][1] + 1);
-
-        zValues.add(coords[2][0]);
-        zValues.add(coords[2][1] + 1);
 
         const start = new Vector3(...coords?.map((value) => value[0]));
         const end = new Vector3(...coords?.map((value) => value[1]));
@@ -61,27 +49,69 @@ const part2 = () => {
         });
         id++;
     }
+    return instructions;
+};
 
-    const xValuesSorted = [...xValues].sort((a, b) => a - b);
-    const yValuesSorted = [...yValues].sort((a, b) => a - b);
-    const zValuesSorted = [...zValues].sort((a, b) => a - b);
+const getAxisValues = (instructions: InstructionId[], axis: 'x' | 'y' | 'z'): number[] => {
+    const values = new Set<number>();
+    for (const instruction of instructions) {
+        values.add(instruction.box.min[axis]);
+        values.add(instruction.box.max[axis] + 1);
+    }
+    return [...values].sort((a, b) => a - b);
+};
+
+const part2 = () => {
+    const input = getInput('2021', '22')
+        .split('\n')
+        .filter((line) => line !== '');
+
+    // Initialize
+    const instructions: InstructionId[] = parseInstructions(input);
+    const xValues = getAxisValues(instructions, 'x');
+
+    const yMin = Math.min(...instructions.map((instr) => instr.box.min.y));
+    const yMax = Math.max(...instructions.map((instr) => instr.box.max.y));
+
+    const zMin = Math.min(...instructions.map((instr) => instr.box.min.z));
+    const zMax = Math.max(...instructions.map((instr) => instr.box.max.z));
 
     let totalOn = 0;
 
-    let almostDone = 0;
-    for (let xIndex = 0; xIndex < xValues.size - 1; xIndex++) {
-        console.log(almostDone++, xValues.size);
-        for (let yIndex = 0; yIndex < yValues.size - 1; yIndex++) {
-            for (let zIndex = 0; zIndex < zValues.size - 1; zIndex++) {
+    // Check this plane of the box
+    for (let xIndex = 0; xIndex < xValues.length - 1; xIndex++) {
+        const rowBox = new Box3(
+            new Vector3(xValues[xIndex] - 0.5, yMin, zMin),
+            new Vector3(xValues[xIndex + 1] - 0.5, yMax, zMax),
+        );
+        const instructionsX = instructions.filter((instruction) =>
+            instruction.box.intersectsBox(rowBox),
+        );
+        const yValues = getAxisValues(instructionsX, 'y');
+
+        // Check the lines on this plane
+        for (let yIndex = 0; yIndex < yValues.length - 1; yIndex++) {
+            const colBox = new Box3(
+                new Vector3(xValues[xIndex] - 0.5, yValues[yIndex] - 0.5, zMin),
+                new Vector3(xValues[xIndex + 1] - 0.5, yValues[yIndex + 1] - 0.5, zMax),
+            );
+
+            const instructionsY = instructions.filter((instruction) =>
+                instruction.box.intersectsBox(colBox),
+            );
+            const zValues = getAxisValues(instructionsY, 'z');
+
+            // Check the blocks on this line
+            for (let zIndex = 0; zIndex < zValues.length - 1; zIndex++) {
                 const start = new Vector3(
-                    xValuesSorted[xIndex] - 0.5,
-                    yValuesSorted[yIndex] - 0.5,
-                    zValuesSorted[zIndex] - 0.5,
+                    xValues[xIndex] - 0.5,
+                    yValues[yIndex] - 0.5,
+                    zValues[zIndex] - 0.5,
                 );
                 const end = new Vector3(
-                    xValuesSorted[xIndex + 1] - 0.5,
-                    yValuesSorted[yIndex + 1] - 0.5,
-                    zValuesSorted[zIndex + 1] - 0.5,
+                    xValues[xIndex + 1] - 0.5,
+                    yValues[yIndex + 1] - 0.5,
+                    zValues[zIndex + 1] - 0.5,
                 );
                 const box = new Box3(start, end);
 
@@ -97,21 +127,12 @@ const part2 = () => {
         }
     }
 
-    console.log(xValuesSorted);
-    console.log(yValuesSorted);
-    console.log(zValuesSorted);
     return totalOn;
 };
 
 const spaceSize = (a: Vector3, b: Vector3) => {
     return Math.abs((b.x - a.x) * (b.y - a.y) * (b.z - a.z));
 };
+
 console.log(`Solution 1: ${part1()}`);
 console.log(`Solution 2: ${part2()}`);
-// 2324452019859526 to high
-
-// 11560337735628468
-// 9541398387991768
-// 6958057801009488
-
-// 2758514936282235
