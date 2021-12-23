@@ -1,3 +1,4 @@
+import Heap from 'heap';
 import { cloneDeep } from 'lodash';
 import { Vector2 } from 'three';
 import getInput from '../../../utils/getInput';
@@ -17,13 +18,8 @@ class Amphipod {
         this.type = type;
         this.moveCost = 10 ** ['A', 'B', 'C', 'D'].indexOf(type);
         this.position = position;
-        this.movedOut = false;
+        this.movedOut = position.position.y < 2;
         this.finished = false;
-    }
-
-    moveOut(tile: Tile) {
-        this.position = tile;
-        this.movedOut = true;
     }
 
     setPosition(tile: Tile) {
@@ -52,12 +48,12 @@ class Amphipod {
 
             const roomType = getRoomType(nextTileToCheck.position.y, nextTileToCheck.position.x);
             for (const link of nextTileToCheck.links) {
-                const linkRoomType = getRoomType(link.position.y, link.position.x);
+                // const linkRoomType = getRoomType(link.position.y, link.position.x);
                 if (
                     !seen.has(link) &&
                     !toCheck.includes(link) &&
-                    !link.occupied &&
-                    (linkRoomType === null || linkRoomType === this.type)
+                    !link.occupied
+                    // (linkRoomType === null || linkRoomType === this.type)
                 ) {
                     toCheck.push(link);
                 }
@@ -95,6 +91,13 @@ class Amphipod {
                 }
             }
 
+            console.log(
+                nextTileToCheck.canStayOnTile(this),
+                roomType === this.type,
+                nextTileToCheck.links.every((tile) => {
+                    return tile.position.y > nextTileToCheck.position.y || tile.occupied;
+                }),
+            );
             if (
                 nextTileToCheck.canStayOnTile(this) &&
                 roomType === this.type &&
@@ -107,7 +110,6 @@ class Amphipod {
 
             seen.add(nextTileToCheck);
         }
-
         return [];
     }
 
@@ -142,32 +144,51 @@ class House {
     }
 
     solve() {
-        const toCheck: House[] = [this];
+        const pQueue = new Heap((a: House, b: House) =>
+            b.totalEnergyUsed > a.totalEnergyUsed ? -1 : 1,
+        );
+        pQueue.push(this);
         const seen: Set<string> = new Set();
 
-        while (toCheck.length > 0) {
-            console.log(toCheck.length);
-            const nextToCheck = toCheck.pop();
+        while (pQueue.size() > 0) {
+            console.log(pQueue.size());
+            const nextToCheck = pQueue.pop();
             if (!nextToCheck) throw new Error('No more checks to do. Found no solution.');
 
             if (nextToCheck.isFinished()) return nextToCheck.totalEnergyUsed;
 
             // Should check occupied hallway tiles
-            const amphipodsToCheck: Amphipod[] = [];
+            const amphipodsFromHallway: Amphipod[] = [];
             for (const tile of nextToCheck.hallway) {
                 if (tile.occupied) {
-                    amphipodsToCheck.push(tile.occupied);
+                    amphipodsFromHallway.push(tile.occupied);
                 }
             }
-
+            const amphipodsFromRooms: Amphipod[] = [];
             // Should check topmost amphipods in rooms
             for (const amphipod of nextToCheck.rooms.map((room) => room.getUpmostAmphipod())) {
-                if (amphipod) amphipodsToCheck.push(amphipod);
+                if (amphipod) amphipodsFromRooms.push(amphipod);
             }
 
+            console.log('check next', amphipodsFromHallway.length, amphipodsFromRooms.length);
+            console.log(
+                'amphipodsFromHallway',
+                amphipodsFromHallway.map((amp) => amp.position.position),
+            );
+            console.log(
+                'amphipodsFromRooms',
+                amphipodsFromRooms.map((amp) => amp.position.position),
+            );
+            console.log('end check =======================');
+            const amphipodsToCheck = [...amphipodsFromHallway, ...amphipodsFromRooms];
             // Check all amphipods to check
             for (const amphipod of amphipodsToCheck) {
                 const possibleMoves = amphipod.getPossibleMoves();
+
+                if (possibleMoves.length === 0 && amphipod.movedOut) {
+                    console.log(nextToCheck.stringify());
+                    console.log(amphipod.position);
+                }
 
                 const possibleStates = possibleMoves.map((toTile: Tile) => {
                     const stateString = nextToCheck.stringify().split('\n');
@@ -197,23 +218,28 @@ class House {
                 });
 
                 for (const possibleState of possibleStates) {
-                    const stateInToCheck = toCheck.find(
-                        (state: House) => state.stringify() === possibleState.stringify(),
-                    );
+                    //     const stateInToCheck = pQueue
+                    //     .toArray()
+                    //     .find((state: House) => state.stringify() === possibleState.stringify());
+                    // if (
+                    //     stateInToCheck &&
+                    //     stateInToCheck.totalEnergyUsed > possibleState.totalEnergyUsed
+                    // ) {
+                    //     stateInToCheck.totalEnergyUsed = possibleState.totalEnergyUsed;
+                    // } else
                     if (
-                        stateInToCheck &&
-                        stateInToCheck.totalEnergyUsed > possibleState.totalEnergyUsed
+                        !seen.has(possibleState.stringify()) &&
+                        !pQueue
+                            .toArray()
+                            .find((state) => state.stringify() === possibleState.stringify())
                     ) {
-                        stateInToCheck.totalEnergyUsed = possibleState.totalEnergyUsed;
-                    } else if (!seen.has(possibleState.stringify())) {
-                        toCheck.push(possibleState);
+                        pQueue.push(possibleState);
                     }
                 }
             }
 
             console.log('energy', nextToCheck.totalEnergyUsed);
             seen.add(nextToCheck.stringify());
-            toCheck.sort((a: House, b: House) => b.totalEnergyUsed - a.totalEnergyUsed);
         }
         return -1;
     }
