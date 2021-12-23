@@ -134,20 +134,19 @@ class House {
     rooms: Room[];
     totalEnergyUsed: number;
 
-    constructor(amphipods: Amphipod[], hallway: Tile[], rooms: Room[]) {
+    constructor(amphipods: Amphipod[], hallway: Tile[], rooms: Room[], startingEnergy = 0) {
         this.hallway = hallway;
         this.rooms = rooms;
         this.amphipods = amphipods;
-        this.totalEnergyUsed = 0;
+        this.totalEnergyUsed = startingEnergy;
     }
 
     solve() {
         const toCheck: House[] = [this];
         const seen: Set<string> = new Set();
-        let firstTime = true;
 
         while (toCheck.length > 0) {
-            // console.log(toCheck.length);
+            console.log(toCheck.length);
             const nextToCheck = toCheck.pop();
             if (!nextToCheck) throw new Error('No more checks to do. Found no solution.');
 
@@ -166,29 +165,36 @@ class House {
                 if (amphipod) amphipodsToCheck.push(amphipod);
             }
 
-            // console.log(nextToCheck.totalEnergyUsed);
-
             // Check all amphipods to check
             for (const amphipod of amphipodsToCheck) {
                 const possibleMoves = amphipod.getPossibleMoves();
 
-                if (firstTime) console.log(nextToCheck.stringify());
-
                 const possibleStates = possibleMoves.map((toTile: Tile) => {
-                    const state = nextToCheck.clone();
-                    const clonedAmphipod = state.amphipods.find((a) => a.id === amphipod.id);
+                    const stateString = nextToCheck.stringify().split('\n');
+
+                    const { tiles, rooms, hallway } = parseTiles(stateString);
+                    const amphipods = parseAmphipods(stateString, tiles);
+                    const state = new House(amphipods, hallway, rooms, nextToCheck.totalEnergyUsed);
+
+                    const clonedAmphipod = state.amphipods.find((a) =>
+                        a.position.position.equals(amphipod.position.position),
+                    );
                     if (!clonedAmphipod) throw new Error('Amphipod non existant');
 
-                    clonedAmphipod.moveToTile(toTile);
+                    const clonedTiles = [...state.hallway];
+                    for (const room of state.rooms) {
+                        clonedTiles.push(...room.tiles);
+                    }
 
-                    if (firstTime) console.log(clonedAmphipod.id, clonedAmphipod.position.position);
-                    if (firstTime) console.log(clonedAmphipod.id, clonedAmphipod.position.position);
+                    const clonedToTile = clonedTiles.find((candidate: Tile) =>
+                        candidate.position.equals(toTile.position),
+                    );
+                    if (!clonedToTile) throw new Error('To Tile non existant');
+
+                    state.totalEnergyUsed += clonedAmphipod.moveToTile(clonedToTile);
 
                     return state;
                 });
-
-                if (firstTime) console.log(possibleStates[0].hallway);
-                firstTime = false;
 
                 for (const possibleState of possibleStates) {
                     const stateInToCheck = toCheck.find(
@@ -205,8 +211,9 @@ class House {
                 }
             }
 
+            console.log('energy', nextToCheck.totalEnergyUsed);
             seen.add(nextToCheck.stringify());
-            toCheck.sort((a: House, b: House) => a.totalEnergyUsed - b.totalEnergyUsed);
+            toCheck.sort((a: House, b: House) => b.totalEnergyUsed - a.totalEnergyUsed);
         }
         return -1;
     }
@@ -217,13 +224,20 @@ class House {
     }
 
     stringify() {
-        const hallwayString = this.hallway.map((tile: Tile) => tile.stringify());
+        let output = '#############\n';
 
-        const roomString = this.rooms.map((room) =>
-            room.tiles.map((tile: Tile) => tile.stringify()).join('_'),
-        );
+        output += '#' + this.hallway.map((tile: Tile) => tile.stringify()).join('') + '#\n';
 
-        return `${hallwayString}\n${roomString}`;
+        for (const tileIndex of this.rooms[0].tiles.keys()) {
+            output +=
+                '###' +
+                this.rooms.map((room) => room.tiles[tileIndex].stringify()).join('#') +
+                '###\n';
+        }
+
+        output += '#############\n';
+
+        return output;
     }
 
     clone() {
