@@ -6,14 +6,25 @@ type Room = 'A' | 'B' | 'C' | 'D' | null;
 class Amphipod {
     id: number;
     type: 'A' | 'B' | 'C' | 'D';
-    moveEnergy: number;
+    moveCost: number;
     position: Tile;
+    usedEnergy: number;
+    movedOut: boolean;
+    finished: boolean;
 
     constructor(id: number, type: 'A' | 'B' | 'C' | 'D', position: Tile) {
         this.id = id;
         this.type = type;
-        this.moveEnergy = 10 ** ['A', 'B', 'C', 'D'].indexOf(type);
+        this.moveCost = 10 ** ['A', 'B', 'C', 'D'].indexOf(type);
         this.position = position;
+        this.usedEnergy = 0;
+        this.movedOut = false;
+        this.finished = false;
+    }
+
+    move(tile: Tile) {
+        this.position = tile;
+        this.usedEnergy += this.moveCost;
     }
 }
 
@@ -25,21 +36,68 @@ class House {
         this.tiles = tiles;
         this.amphipods = amphipods;
     }
+
+    solve() {
+        for (const amphipod of this.amphipods) {
+            const sameTypeAmphipod = this.amphipods.find(
+                (amphi) => amphi.id !== amphipod.id && amphi.type === amphipod.type,
+            );
+            if (!sameTypeAmphipod) throw new Error('Only one of type');
+
+            const moveableTiles = amphipod.position.links.filter((tile) => {
+                return tile.canEnter(amphipod, sameTypeAmphipod, amphipod.position);
+            });
+            for (const nextTile of moveableTiles) {
+            }
+        }
+    }
 }
 
 class Tile {
     position: Vector2;
     links: Tile[];
     room: Room;
+    occupied: boolean;
 
     constructor(position: Vector2, room: Room = null) {
         this.position = position;
         this.links = [];
         this.room = room;
+        this.occupied = !!room;
     }
 
     addLink(tile: Tile): void {
         this.links.push(tile);
+    }
+
+    canStopHere(amphipod: Amphipod, sameTypeAmphipod: Amphipod) {
+        if (
+            this.room &&
+            amphipod.type === this.room &&
+            (this.links.length === 1 || sameTypeAmphipod.finished)
+        ) {
+            return true;
+        }
+
+        if (!amphipod.movedOut && this.links.length < 3) {
+            return true;
+        }
+    }
+
+    canEnter(amphipod: Amphipod, sameTypeAmphipod: Amphipod, lastTile: Tile) {
+        if (this.occupied) return false;
+
+        if (this.room && this.room !== amphipod.type && amphipod.usedEnergy > 0) return false;
+
+        if (
+            this.links
+                .filter((tile) => !tile.position.equals(lastTile.position))
+                .every((tile) => !tile.canEnter(amphipod, sameTypeAmphipod, lastTile))
+        ) {
+            this.canStopHere(amphipod, sameTypeAmphipod);
+        }
+
+        return true;
     }
 }
 
@@ -101,6 +159,25 @@ const parseAmphipods = (input: string[], tiles: Tile[]): Amphipod[] => {
 
                 const amphipod = new Amphipod(id, space, tile);
                 amphipods.push(amphipod);
+                id++;
+            }
+        }
+    }
+
+    for (const type of ['A', 'B', 'C', 'D']) {
+        const typeAmphipods = amphipods.filter((amphipod) => amphipod.type === type);
+        if (typeAmphipods.every((amphipod) => amphipod.position.room === amphipod.type)) {
+            for (const amphipod of typeAmphipods) {
+                amphipod.finished = true;
+            }
+        } else {
+            for (const amphipod of typeAmphipods) {
+                if (
+                    amphipod.type === amphipod.position.room &&
+                    amphipod.position.position.y === 3
+                ) {
+                    amphipod.finished = true;
+                }
             }
         }
     }
@@ -113,10 +190,13 @@ const part1 = () => {
 
     const tiles = parseTiles(input);
 
-    console.log(tiles);
     const amphipods = parseAmphipods(input, tiles);
 
-    return;
+    const house = new House(amphipods, tiles);
+
+    house.solve();
+
+    return amphipods.reduce((total, current) => (total += current.usedEnergy), 0);
 };
 
 const part2 = () => {
