@@ -4,7 +4,7 @@ import getInput from '../../../utils/getInput';
 type Room = 'A' | 'B' | 'C' | 'D' | null;
 
 class Amphipod {
-    id: number;
+    id: string;
     type: 'A' | 'B' | 'C' | 'D';
     moveCost: number;
     position: Tile;
@@ -12,7 +12,7 @@ class Amphipod {
     movedOut: boolean;
     finished: boolean;
 
-    constructor(id: number, type: 'A' | 'B' | 'C' | 'D', position: Tile) {
+    constructor(id: string, type: 'A' | 'B' | 'C' | 'D', position: Tile) {
         this.id = id;
         this.type = type;
         this.moveCost = 10 ** ['A', 'B', 'C', 'D'].indexOf(type);
@@ -148,7 +148,12 @@ const parseTiles = (input: string[]): Tile[] => {
 
 const parseAmphipods = (input: string[], tiles: Tile[]): Amphipod[] => {
     const amphipods: Amphipod[] = [];
-    let id = 0;
+    const typeCounts = {
+        A: 0,
+        B: 0,
+        C: 0,
+        D: 0,
+    };
     for (const [lineIndex, line] of input.entries()) {
         for (const [spaceIndex, space] of line.split('').entries()) {
             if (space === 'A' || space === 'B' || space === 'C' || space == 'D') {
@@ -157,9 +162,11 @@ const parseAmphipods = (input: string[], tiles: Tile[]): Amphipod[] => {
                 );
                 if (!tile) throw new Error('No tile found for amphipods');
 
+                typeCounts[space]++;
+                const id = `${space}${typeCounts[space]}`;
+
                 const amphipod = new Amphipod(id, space, tile);
                 amphipods.push(amphipod);
-                id++;
             }
         }
     }
