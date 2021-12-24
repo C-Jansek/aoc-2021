@@ -123,30 +123,100 @@ const part1 = () => {
     // const modelNos = generateModelNos(14);
 
     let highestModelNo = 0;
-    for (let modelNo = 11_111_111_111_111; modelNo < 100_000_000_000_000; modelNo++) {
-        if (
-            modelNo
-                .toString()
-                .split('')
-                .map((digit) => Number(digit))
-                .includes(0)
-        ) {
-            continue;
-        }
+    const modelNos = [11_111_111_111_111];
+    const zMap: { [key: number]: number } = {};
+    const difference: { [key: number]: { [key: string]: number } } = {};
 
-        if (modelNo % 10000 === 1111) console.log(modelNo);
+    for (const digit of modelNos[0]
+        .toString()
+        .split('')
+        .keys()) {
+        for (let index = 1; index <= 9; index++) {
+            const start = modelNos[0].toString().split('');
+            start.splice(digit, 1, index.toString());
+            const startNumber = Number(start.join(''));
+
+            modelNos.push(startNumber);
+        }
+        // const second = modelNos[0].toString().split('');
+        // second.splice(digit, 1, '2');
+        // const secondNumber = Number(second.join(''));
+
+        // const third = modelNos[0].toString().split('');
+        // third.splice(digit, 1, '3');
+        // const thirdNumber = Number(third.join(''));
+
+        // const fourth = modelNos[0].toString().split('');
+        // fourth.splice(digit, 1, '4');
+        // const fourthNumber = Number(fourth.join(''));
+
+        // modelNos.push(secondNumber, thirdNumber, fourthNumber);
+    }
+
+    for (const modelNo of modelNos) {
         const alu = new ALU(
             modelNo
                 .toString()
                 .split('')
                 .map((digit) => Number(digit)),
         );
-        const variables = alu.process(input);
-        if (variables['z'] === 0 && highestModelNo < modelNo) {
-            highestModelNo = modelNo;
-            console.log({ highestModelNo });
+
+        alu.process(input);
+        // console.log(modelNo, alu.variables);
+        zMap[modelNo] = alu.variables['z'];
+    }
+
+    for (const digit of modelNos[0]
+        .toString()
+        .split('')
+        .keys()) {
+        difference[digit] = {};
+        for (let index = 1; index < 9; index++) {
+            const first = modelNos[0].toString().split('');
+            first.splice(digit, 1, index.toString());
+            const firstNumber = Number(first.join(''));
+
+            const second = modelNos[0].toString().split('');
+            second.splice(digit, 1, (index + 1).toString());
+            const secondNumber = Number(second.join(''));
+
+            modelNos.push(firstNumber);
+            difference[digit][`${index + 1} - ${index}`] = zMap[secondNumber] - zMap[firstNumber];
         }
     }
+    const modelNo = 99_811_211_111_111;
+    // const modelNo = 99_818_949_911_191;
+    const alu = new ALU(
+        modelNo
+            .toString()
+            .split('')
+            .map((digit) => Number(digit)),
+    );
+
+    alu.process(input);
+    zMap[modelNo] = alu.variables['z'];
+
+    const modelNoPrev = 99_818_949_911_191;
+    const aluPrev = new ALU(
+        modelNoPrev
+            .toString()
+            .split('')
+            .map((digit) => Number(digit)),
+    );
+
+    aluPrev.process(input);
+    zMap[modelNoPrev] = aluPrev.variables['z'];
+
+    console.log('\n\nANSWER ==============');
+    console.log(modelNo);
+    console.log(modelNoPrev);
+    console.log('\n');
+
+    console.log(zMap[modelNo]);
+    console.log(zMap[modelNoPrev]);
+    console.log();
+
+    console.table(difference);
 
     return highestModelNo;
 };
