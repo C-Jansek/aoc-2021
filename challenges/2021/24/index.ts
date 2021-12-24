@@ -1,3 +1,4 @@
+import { unset } from 'lodash';
 import getInput from '../../../utils/getInput';
 
 type CommandInput = number | 'w' | 'x' | 'y' | 'z';
@@ -32,8 +33,10 @@ class ALU {
     runCommand(command: string, a: CommandInput | null, b: CommandInput | null) {
         if (a === null) throw new Error(`At least one argument expected`);
 
-        if (command === 'inp') this.inp(a);
-        else if (b === null) throw new Error(`Two arguments expected to function ${command}!`);
+        if (command === 'inp') {
+            console.log(this.variables['z']);
+            this.inp(a);
+        } else if (b === null) throw new Error(`Two arguments expected to function ${command}!`);
         else if (command === 'add') this.add(a, b);
         else if (command === 'mul') this.mul(a, b);
         else if (command === 'div') this.div(a, b);
@@ -103,16 +106,13 @@ const getCommandInput = (a: any): CommandInput | null => {
     return Number(a);
 };
 
-const generateModelNos = (length: number): number[][] => {
-    if (length === 1) return [[1], [2], [3], [4], [5], [6], [7], [8], [9]];
+const calculateNextZ = (w: number, previousZ: number, d: number, a: number, b: number): number => {
+    let x = (previousZ % 26) + a;
+    x = x === w ? 0 : 1;
 
-    const totalModelNos: number[][] = [];
-    for (let index = 1; index <= 9; index++) {
-        totalModelNos.push(
-            ...generateModelNos(length - 1).map((modelNo: number[]) => [...modelNo, index]),
-        );
-    }
-    return totalModelNos;
+    let z = Math.trunc(previousZ / d);
+    z = z * (25 * x + 1) + (w + b) * x;
+    return z;
 };
 
 const part1 = () => {
@@ -120,105 +120,130 @@ const part1 = () => {
         .split('\n')
         .filter((line) => line !== '');
 
-    // const modelNos = generateModelNos(14);
+    // inp w
+    // mul x 0
+    // add x z
+    // mod x 26
+    // div z 1
+    // add x 12
+    // eql x w
+    // eql x 0
+    // mul y 0
+    // add y 25
+    // mul y x
+    // add y 1
+    // mul z y
+    // mul y 0
+    // add y w
+    // add y 4
+    // mul y x
+    // add z y
 
-    let highestModelNo = 0;
-    const modelNos = [11_111_111_111_111];
-    const zMap: { [key: number]: number } = {};
-    const difference: { [key: number]: { [key: string]: number } } = {};
+    const variables: { [key: number]: { [key: string]: number } } = {};
 
-    for (const digit of modelNos[0]
+    for (let digitIndex = 0; digitIndex < 14; digitIndex++) {
+        variables[digitIndex] = {};
+        variables[digitIndex]['D'] = Number(input[digitIndex * 18 + 4].split(' ')[2]);
+        variables[digitIndex]['A'] = Number(input[digitIndex * 18 + 5].split(' ')[2]);
+        variables[digitIndex]['B'] = Number(input[digitIndex * 18 + 15].split(' ')[2]);
+    }
+
+    console.log(variables);
+    const modelNo = 99_818_949_911_191;
+
+    const modelNoDigits = modelNo
         .toString()
         .split('')
-        .keys()) {
-        for (let index = 1; index <= 9; index++) {
-            const start = modelNos[0].toString().split('');
-            start.splice(digit, 1, index.toString());
-            const startNumber = Number(start.join(''));
+        .map((digit, index) => {
+            return {
+                digit: Number(digit),
+                index,
+            };
+        });
 
-            modelNos.push(startNumber);
+    let states: { [key: string]: GameState } = {
+        '0|0': {
+            z: 0,
+            currentDigit: 0,
+            digits: [],
+        },
+    };
+
+    let weShouldContinue = true;
+    while (weShouldContinue) {
+        const currentStates: { [key: string]: GameState } = {};
+        for (const state of Object.values(states)) {
+            const digit = modelNoDigits[state.currentDigit];
+
+            for (let nextDigit = 1; nextDigit <= 9; nextDigit++) {
+                let z = state.z;
+                z = calculateNextZ(
+                    nextDigit,
+                    z,
+                    variables[digit['index']]['D'],
+                    variables[digit['index']]['A'],
+                    variables[digit['index']]['B'],
+                );
+
+                const newState = {
+                    z,
+                    currentDigit: digit.index + 1,
+                    digits: [...state.digits, nextDigit],
+                };
+                const stringifiedState = stringifyState(newState);
+
+                if (currentStates[stringifiedState]) {
+                    if (
+                        Number(newState.digits.join('')) >
+                        Number(currentStates[stringifiedState].digits.join(''))
+                    ) {
+                        currentStates[stringifiedState] = newState;
+                    }
+                } else {
+                    currentStates[stringifiedState] = newState;
+                }
+                // console.log(z);
+            }
         }
-        // const second = modelNos[0].toString().split('');
-        // second.splice(digit, 1, '2');
-        // const secondNumber = Number(second.join(''));
+        states = currentStates;
+        if (Object.values(states)[0].currentDigit === 14) weShouldContinue = false;
+        console.log(Object.values(states)[0].currentDigit);
+        // console.log(Object.values(states).map((state) => stringifyState(state)));
 
-        // const third = modelNos[0].toString().split('');
-        // third.splice(digit, 1, '3');
-        // const thirdNumber = Number(third.join(''));
-
-        // const fourth = modelNos[0].toString().split('');
-        // fourth.splice(digit, 1, '4');
-        // const fourthNumber = Number(fourth.join(''));
-
-        // modelNos.push(secondNumber, thirdNumber, fourthNumber);
-    }
-
-    for (const modelNo of modelNos) {
-        const alu = new ALU(
-            modelNo
-                .toString()
-                .split('')
-                .map((digit) => Number(digit)),
-        );
-
-        alu.process(input);
-        // console.log(modelNo, alu.variables);
-        zMap[modelNo] = alu.variables['z'];
-    }
-
-    for (const digit of modelNos[0]
-        .toString()
-        .split('')
-        .keys()) {
-        difference[digit] = {};
-        for (let index = 1; index < 9; index++) {
-            const first = modelNos[0].toString().split('');
-            first.splice(digit, 1, index.toString());
-            const firstNumber = Number(first.join(''));
-
-            const second = modelNos[0].toString().split('');
-            second.splice(digit, 1, (index + 1).toString());
-            const secondNumber = Number(second.join(''));
-
-            modelNos.push(firstNumber);
-            difference[digit][`${index + 1} - ${index}`] = zMap[secondNumber] - zMap[firstNumber];
+        for (const stringifiedGameState in states) {
+            if (Object.prototype.hasOwnProperty.call(states, stringifiedGameState)) {
+                const gameState = states[stringifiedGameState];
+                if (gameState.z > 1000000) {
+                    unset(states, stringifiedGameState);
+                }
+            }
         }
+        // console.log();
+        // console.log(states);
     }
-    const modelNo = 99_811_211_111_111;
-    // const modelNo = 99_818_949_911_191;
-    const alu = new ALU(
-        modelNo
-            .toString()
-            .split('')
-            .map((digit) => Number(digit)),
-    );
+
+    const zeroDigits = Object.values(states).filter((state) => state.z === 0);
+    console.log(zeroDigits[0].digits.join(''));
+
+    console.log(zeroDigits);
+
+    const alu = new ALU(zeroDigits[0].digits);
 
     alu.process(input);
-    zMap[modelNo] = alu.variables['z'];
 
-    const modelNoPrev = 99_818_949_911_191;
-    const aluPrev = new ALU(
-        modelNoPrev
-            .toString()
-            .split('')
-            .map((digit) => Number(digit)),
-    );
+    console.log(alu.variables['z']);
 
-    aluPrev.process(input);
-    zMap[modelNoPrev] = aluPrev.variables['z'];
+    return zeroDigits[0].digits.join('');
+};
 
-    console.log('\n\nANSWER ==============');
-    console.log(modelNo);
-    console.log(modelNoPrev);
-    console.log('\n');
+type GameState = {
+    z: number;
+    currentDigit: number;
+    digits: number[];
+};
 
-    console.log(zMap[modelNo]);
-    console.log(zMap[modelNoPrev]);
-    console.log();
-
-    console.table(difference);
-
-    return highestModelNo;
+const stringifyState = (gameState: GameState) => {
+    return `${gameState.currentDigit}|${gameState.z}`;
 };
 
 const part2 = () => {
