@@ -25,7 +25,6 @@ type Amphipod = {
 type Move = {
     start: Vector2;
     end: Vector2;
-    amphipod: RoomType;
 };
 
 type State = {
@@ -99,7 +98,6 @@ const getMoveToHallway = (amphipod: Amphipod, index: number): Move => {
     return {
         start: amphipod.position,
         end: new Vector2(index, 0),
-        amphipod: amphipod.type,
     };
 };
 
@@ -110,7 +108,6 @@ const getOutMoves = (house: House): Move[] => {
         const amphipod = getTopAmphipod(room);
         if (amphipod === null) continue;
 
-        console.log(amphipod);
         // Check if it can move out
         // To the left
         let moveLeftHallwayIndex = roomMap[room.roomType] - 1;
@@ -162,14 +159,6 @@ const getInMoves = (house: House): Move[] => {
     const inMoves: Move[] = [];
     for (const [tileIndex, hallwayTile] of house.hallway.entries()) {
         if (hallwayTile === '.') continue;
-        if (
-            hallwayTile !== 'A' &&
-            hallwayTile !== 'B' &&
-            hallwayTile !== 'C' &&
-            hallwayTile !== 'D'
-        ) {
-            throw new Error('Not an amphipod type');
-        }
 
         const amphipod = {
             type: hallwayTile,
@@ -192,7 +181,7 @@ const getInMoves = (house: House): Move[] => {
         const maxX = Math.max(amphipod.position.x, endPosition.x);
         if (house.hallway.slice(minX, maxX).some((tile) => tile !== '.')) continue;
 
-        inMoves.push({ start: amphipod.position, end: endPosition, amphipod: hallwayTile });
+        inMoves.push({ start: amphipod.position, end: endPosition });
     }
 
     return inMoves;
@@ -227,8 +216,6 @@ const doInMove = (house: House, move: Move): number => {
 };
 
 const doOutMove = (house: House, move: Move): number => {
-    console.log(stringifyHouse(house));
-    console.log(move);
     // Find room type
     const roomType = Object.keys(roomMap).find((roomKey) => roomMap[roomKey] === move.start.x);
     if (roomType !== 'A' && roomType !== 'B' && roomType !== 'C' && roomType !== 'D') {
@@ -253,7 +240,56 @@ const doOutMove = (house: House, move: Move): number => {
     return move.start.manhattanDistanceTo(move.end) * moveCost(type);
 };
 
-const solve = (house: House): number => {
+const minRemainingEnergy = (house: House): number => {
+    // TODO: calc min remaining energy
+    let totalEnergy = 0;
+    const inRooms: { [key: string]: number } = {};
+    for (const room of house.rooms) {
+        inRooms[room.roomType] = room.tiles.filter((tile) => tile === room.roomType).length;
+    }
+
+    for (const room of house.rooms) {
+        if (room.tiles.every((tile) => tile === room.roomType || tile === '.')) continue;
+
+        let tileIndex = 0;
+        for (const tile of room.tiles) {
+            if (tile === '.') continue;
+            if (tile !== 'A' && tile !== 'B' && tile !== 'C' && tile !== 'D') {
+                throw new Error('Not an amphipod');
+            }
+
+            const outStart = new Vector2(roomMap[room.roomType], tileIndex);
+            const outEnd = new Vector2(roomMap[room.roomType], 0);
+
+            const inEnd = new Vector2(roomMap[tile], room.tiles.length - inRooms[tile]);
+            inRooms[tile]++;
+
+            totalEnergy +=
+                moveCost(tile) *
+                (outStart.manhattanDistanceTo(outEnd) + outEnd.manhattanDistanceTo(inEnd));
+
+            tileIndex++;
+        }
+    }
+
+    for (const [tileIndex, tile] of house.hallway.entries()) {
+        if (tile === '.') continue;
+        if (tile !== 'A' && tile !== 'B' && tile !== 'C' && tile !== 'D') {
+            throw new Error('Not an amphipod');
+        }
+
+        const inStart = new Vector2(tileIndex, 0);
+
+        const inEnd = new Vector2(roomMap[tile], house.rooms[0].tiles.length - inRooms[tile]);
+        inRooms[tile]++;
+
+        totalEnergy += moveCost(tile) * inStart.manhattanDistanceTo(inEnd);
+    }
+
+    return totalEnergy;
+};
+
+const solve = (house: House, upperBound: number): number => {
     const pQueue: Heap<State> = new Heap((a: State, b: State) =>
         b.totalEnergy > a.totalEnergy ? -1 : 1,
     );
@@ -263,23 +299,22 @@ const solve = (house: House): number => {
     // while (pQueue.size() > 0 && seen.size === 1) {
     while (pQueue.size() > 0) {
         const state = pQueue.pop();
-
-        console.log(pQueue.size(), state.totalEnergy);
-        if (state.totalEnergy === 40) console.log(pQueue.size(), stringifyHouse(state.house));
-        // console.log(pQueue.size(), state.totalEnergy);
-        console.log(stringifyHouse(state.house));
-        console.log(getOutMoves(house));
-        console.log(getInMoves(house));
         if (!state) throw new Error('No next State to check');
+
+        console.log(pQueue.size(), state.totalEnergy, minRemainingEnergy(state.house));
+        // console.log('\n\n');
+        console.log(stringifyHouse(state.house));
+        // console.log(state.house);
+        // console.log(state.house.rooms);
+        // console.log(getOutMoves(state.house));
+        // console.log(getInMoves(state.house));
 
         if (isFinished(state.house)) return state.totalEnergy;
 
         const doMoves: Move[] = [];
-        const inMoves = getInMoves(house);
-        const outMoves = getOutMoves(house);
-
+        const inMoves = getInMoves(state.house);
         if (inMoves.length > 0) doMoves.push(...inMoves);
-        else doMoves.push(...outMoves);
+        else doMoves.push(...getOutMoves(state.house));
 
         for (const move of doMoves) {
             const newState = cloneDeep(state);
@@ -290,7 +325,10 @@ const solve = (house: House): number => {
                     : doOutMove(newState.house, move);
 
             const stringified = stringifyHouse(newState.house);
-            if (!seen.has(stringified)) {
+            if (
+                !seen.has(stringified) &&
+                state.totalEnergy + minRemainingEnergy(state.house) < upperBound
+            ) {
                 const allreadyIn = pQueue
                     .toArray()
                     .find(
@@ -301,6 +339,7 @@ const solve = (house: House): number => {
                     pQueue.push(newState);
                 } else {
                     // console.log('allreadyin');
+
                     // set lowest energy if allready in the queue
                     if (allreadyIn.totalEnergy > newState.totalEnergy) {
                         allreadyIn.totalEnergy = newState.totalEnergy;
@@ -337,7 +376,22 @@ const part2 = () => {
 
     const house = parseInput(input, 4);
 
-    solve(house);
+    // doOutMove(house, {
+    //     start: new Vector2(2, 2),
+    //     end: new Vector2(1, 0),
+    // });
+    // doOutMove(house, {
+    //     start: new Vector2(2, 3),
+    //     end: new Vector2(3, 0),
+    // });
+    // doOutMove(house, {
+    //     start: new Vector2(2, 4),
+    //     end: new Vector2(5, 0),
+    // });
+
+    // solve(house, 49076);
+    // solve(house, 48676);
+    solve(house, 44300);
 
     console.log(input);
 
