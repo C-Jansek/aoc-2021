@@ -1,448 +1,355 @@
 import Heap from 'heap';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, uniqBy } from 'lodash';
 import { Vector2 } from 'three';
 import getInput from '../../../utils/getInput';
 
-type RoomType = 'A' | 'B' | 'C' | 'D' | null;
+type RoomType = 'A' | 'B' | 'C' | 'D';
 
-class Amphipod {
-    id: string;
-    type: 'A' | 'B' | 'C' | 'D';
-    moveCost: number;
-    position: Tile;
-    movedOut: boolean;
-    finished: boolean;
+const moveCost = (type: RoomType) => 10 ** ['A', 'B', 'C', 'D'].indexOf(type);
 
-    constructor(id: string, type: 'A' | 'B' | 'C' | 'D', position: Tile) {
-        this.id = id;
-        this.type = type;
-        this.moveCost = 10 ** ['A', 'B', 'C', 'D'].indexOf(type);
-        this.position = position;
-        this.movedOut = position.position.y < 2;
-        this.finished = false;
-    }
-
-    setPosition(tile: Tile) {
-        tile.occupied = this;
-        this.position = tile;
-    }
-
-    getPossibleMoves() {
-        if (this.finished) return [];
-
-        if (!this.movedOut) {
-            return this.getPossibleOutMoves();
-        }
-
-        return this.getPossibleFinalMove();
-    }
-
-    getPossibleOutMoves() {
-        const possibleMoves: Tile[] = [];
-        const toCheck = [this.position];
-        const seen: Set<Tile> = new Set();
-
-        while (toCheck.length > 0) {
-            const nextTileToCheck = toCheck.pop();
-            if (!nextTileToCheck) throw new Error('No next tile');
-
-            const roomType = getRoomType(nextTileToCheck.position.y, nextTileToCheck.position.x);
-            for (const link of nextTileToCheck.links) {
-                // const linkRoomType = getRoomType(link.position.y, link.position.x);
-                if (
-                    !seen.has(link) &&
-                    !toCheck.includes(link) &&
-                    !link.occupied
-                    // (linkRoomType === null || linkRoomType === this.type)
-                ) {
-                    toCheck.push(link);
-                }
-            }
-
-            if (nextTileToCheck.canStayOnTile(this) && roomType === null) {
-                possibleMoves.push(nextTileToCheck);
-            }
-
-            seen.add(nextTileToCheck);
-        }
-        // console.log('out', possibleMoves.length);
-        return possibleMoves;
-    }
-
-    getPossibleFinalMove() {
-        const toCheck = [this.position];
-        const seen: Set<Tile> = new Set();
-
-        while (toCheck.length > 0) {
-            const nextTileToCheck = toCheck.pop();
-            if (!nextTileToCheck) throw new Error('No next tile');
-
-            // TODO: Adapt to check only moves that would get better for getting closer to the rooms
-            const roomType = getRoomType(nextTileToCheck.position.y, nextTileToCheck.position.x);
-            for (const link of nextTileToCheck.links) {
-                const linkRoomType = getRoomType(link.position.y, link.position.x);
-                if (
-                    !seen.has(link) &&
-                    !toCheck.includes(link) &&
-                    !link.occupied &&
-                    (linkRoomType === null || linkRoomType === this.type)
-                ) {
-                    toCheck.push(link);
-                }
-            }
-
-            console.log(
-                nextTileToCheck.canStayOnTile(this),
-                roomType === this.type,
-                nextTileToCheck.links.every((tile) => {
-                    return tile.position.y > nextTileToCheck.position.y || tile.occupied;
-                }),
-            );
-            if (
-                nextTileToCheck.canStayOnTile(this) &&
-                roomType === this.type &&
-                nextTileToCheck.links.every((tile) => {
-                    return tile.position.y > nextTileToCheck.position.y || tile.occupied;
-                })
-            ) {
-                return [nextTileToCheck];
-            }
-
-            seen.add(nextTileToCheck);
-        }
-        return [];
-    }
-
-    /**
-     * Move Amphipod to tile.
-     *
-     * @return {number} The cost of doing this move
-     */
-    moveToTile(tile: Tile): number {
-        const distance = this.position.position.manhattanDistanceTo(tile.position);
-        // console.log(distance);
-        // Change position
-        this.position.occupied = null;
-        tile.occupied = this;
-        this.position = tile;
-
-        return distance * this.moveCost;
-    }
-}
-
-class House {
-    hallway: Tile[];
-    amphipods: Amphipod[];
+type House = {
+    hallway: string[];
     rooms: Room[];
-    totalEnergyUsed: number;
+};
 
-    constructor(amphipods: Amphipod[], hallway: Tile[], rooms: Room[], startingEnergy = 0) {
-        this.hallway = hallway;
-        this.rooms = rooms;
-        this.amphipods = amphipods;
-        this.totalEnergyUsed = startingEnergy;
-    }
+type Room = {
+    tiles: string[];
+    roomType: RoomType;
+};
 
-    solve() {
-        const pQueue = new Heap((a: House, b: House) =>
-            b.totalEnergyUsed > a.totalEnergyUsed ? -1 : 1,
-        );
-        pQueue.push(this);
-        const seen: Set<string> = new Set();
-
-        while (pQueue.size() > 0) {
-            console.log(pQueue.size());
-            const nextToCheck = pQueue.pop();
-            if (!nextToCheck) throw new Error('No more checks to do. Found no solution.');
-
-            if (nextToCheck.isFinished()) return nextToCheck.totalEnergyUsed;
-
-            // Should check occupied hallway tiles
-            const amphipodsFromHallway: Amphipod[] = [];
-            for (const tile of nextToCheck.hallway) {
-                if (tile.occupied) {
-                    amphipodsFromHallway.push(tile.occupied);
-                }
-            }
-            const amphipodsFromRooms: Amphipod[] = [];
-            // Should check topmost amphipods in rooms
-            for (const amphipod of nextToCheck.rooms.map((room) => room.getUpmostAmphipod())) {
-                if (amphipod) amphipodsFromRooms.push(amphipod);
-            }
-
-            console.log('check next', amphipodsFromHallway.length, amphipodsFromRooms.length);
-            console.log(
-                'amphipodsFromHallway',
-                amphipodsFromHallway.map((amp) => amp.position.position),
-            );
-            console.log(
-                'amphipodsFromRooms',
-                amphipodsFromRooms.map((amp) => amp.position.position),
-            );
-            console.log('end check =======================');
-            const amphipodsToCheck = [...amphipodsFromHallway, ...amphipodsFromRooms];
-            // Check all amphipods to check
-            for (const amphipod of amphipodsToCheck) {
-                const possibleMoves = amphipod.getPossibleMoves();
-
-                if (possibleMoves.length === 0 && amphipod.movedOut) {
-                    console.log(nextToCheck.stringify());
-                    console.log(amphipod.position);
-                }
-
-                const possibleStates = possibleMoves.map((toTile: Tile) => {
-                    const stateString = nextToCheck.stringify().split('\n');
-
-                    const { tiles, rooms, hallway } = parseTiles(stateString);
-                    const amphipods = parseAmphipods(stateString, tiles);
-                    const state = new House(amphipods, hallway, rooms, nextToCheck.totalEnergyUsed);
-
-                    const clonedAmphipod = state.amphipods.find((a) =>
-                        a.position.position.equals(amphipod.position.position),
-                    );
-                    if (!clonedAmphipod) throw new Error('Amphipod non existant');
-
-                    const clonedTiles = [...state.hallway];
-                    for (const room of state.rooms) {
-                        clonedTiles.push(...room.tiles);
-                    }
-
-                    const clonedToTile = clonedTiles.find((candidate: Tile) =>
-                        candidate.position.equals(toTile.position),
-                    );
-                    if (!clonedToTile) throw new Error('To Tile non existant');
-
-                    state.totalEnergyUsed += clonedAmphipod.moveToTile(clonedToTile);
-
-                    return state;
-                });
-
-                for (const possibleState of possibleStates) {
-                    //     const stateInToCheck = pQueue
-                    //     .toArray()
-                    //     .find((state: House) => state.stringify() === possibleState.stringify());
-                    // if (
-                    //     stateInToCheck &&
-                    //     stateInToCheck.totalEnergyUsed > possibleState.totalEnergyUsed
-                    // ) {
-                    //     stateInToCheck.totalEnergyUsed = possibleState.totalEnergyUsed;
-                    // } else
-                    if (
-                        !seen.has(possibleState.stringify()) &&
-                        !pQueue
-                            .toArray()
-                            .find((state) => state.stringify() === possibleState.stringify())
-                    ) {
-                        pQueue.push(possibleState);
-                    }
-                }
-            }
-
-            console.log('energy', nextToCheck.totalEnergyUsed);
-            seen.add(nextToCheck.stringify());
-        }
-        return -1;
-    }
-
-    isFinished() {
-        if (this.rooms.every((room: Room) => room.isFinished())) return true;
-        return false;
-    }
-
-    stringify() {
-        let output = '#############\n';
-
-        output += '#' + this.hallway.map((tile: Tile) => tile.stringify()).join('') + '#\n';
-
-        for (const tileIndex of this.rooms[0].tiles.keys()) {
-            output +=
-                '###' +
-                this.rooms.map((room) => room.tiles[tileIndex].stringify()).join('#') +
-                '###\n';
-        }
-
-        output += '#############\n';
-
-        return output;
-    }
-
-    clone() {
-        return cloneDeep(this);
-    }
-}
-
-// class Move {
-//     fromTile: Tile;
-//     toTile: Tile;
-
-//     constructor(fromTile: Tile, toTile: Tile) {
-//         this.fromTile = fromTile;
-//         this.toTile = toTile;
-//     }
-// }
-
-class Room {
-    tiles: Tile[];
+type Amphipod = {
     type: RoomType;
+    position: Vector2;
+};
 
-    constructor(tiles: Tile[], type: RoomType) {
-        this.tiles = tiles.sort((a: Tile, b: Tile) => b.position.y - a.position.y);
-        this.type = type;
+type Move = {
+    start: Vector2;
+    end: Vector2;
+    amphipod: RoomType;
+};
+
+type State = {
+    house: House;
+    totalEnergy: number;
+};
+
+const roomMap: { [key: string]: number } = {
+    A: 2,
+    B: 4,
+    C: 6,
+    D: 8,
+};
+
+const parseInput = (input: string, roomSize: number): House => {
+    const hallway: string[] = input
+        .split('\n')[1]
+        .slice(1, -1)
+        .split('');
+
+    const rooms: Room[] = [];
+
+    for (const [type, index] of Object.entries(roomMap)) {
+        if (type !== 'A' && type !== 'B' && type !== 'C' && type !== 'D') {
+            throw new Error('No Room of type');
+        }
+
+        const tiles = input
+            .split('\n')
+            .map((row) => row.split('')[index + 1])
+            .slice(2, 2 + roomSize);
+        rooms.push({
+            tiles,
+            roomType: type,
+        });
     }
 
-    getUpmostAmphipod() {
-        for (const tile of this.tiles) {
-            if (tile.occupied) return tile.occupied;
-        }
+    return {
+        hallway,
+        rooms,
+    };
+};
+
+const stringifyHouse = (house: House): string => {
+    let output = '#'.repeat(13) + '\n';
+
+    output += '#' + house.hallway.join('') + '#' + '\n';
+
+    for (let index = 0; index < house.rooms[0].tiles.length; index++) {
+        output += '###' + house.rooms.map((room) => room.tiles[index]).join('#') + '###' + '\n';
+    }
+    output += '#'.repeat(13);
+
+    return output;
+};
+
+const getTopAmphipod = (room: Room): Amphipod | null => {
+    const amphipod = room.tiles.find((tile) => tile !== '.');
+    if (amphipod !== 'A' && amphipod !== 'B' && amphipod !== 'C' && amphipod !== 'D') {
         return null;
     }
 
-    isFinished() {
-        for (const tile of this.tiles) {
-            if (!tile.occupied || tile.occupied.type !== this.type) return false;
-        }
-        return true;
-    }
-}
-
-class Tile {
-    position: Vector2;
-    links: Tile[];
-    occupied: Amphipod | null;
-
-    constructor(position: Vector2) {
-        this.position = position;
-        this.links = [];
-        this.occupied = null;
-    }
-
-    addLink(tile: Tile): void {
-        this.links.push(tile);
-    }
-
-    stringify() {
-        return this.occupied ? this.occupied.type : '.';
-    }
-
-    canStayOnTile(amphipod: Amphipod) {
-        if (this.links.length === 3) return false;
-
-        const roomType = getRoomType(this.position.y, this.position.x);
-        if (roomType && roomType !== amphipod.type) return false;
-
-        return true;
-    }
-}
-
-const getNeighbours = (tile: Tile, tiles: Tile[]): Tile[] => {
-    const neighbours: Tile[] = [];
-    for (const candidate of tiles) {
-        if (candidate.position.manhattanDistanceTo(tile.position) === 1) {
-            neighbours.push(candidate);
-        }
-    }
-    return neighbours;
+    const y = room.tiles.indexOf(amphipod) + 2;
+    return {
+        type: amphipod,
+        position: new Vector2(roomMap[room.roomType], y),
+    };
 };
 
-const getRoomType = (row: number, col: number): RoomType => {
-    if (row < 2) return null;
-
-    if (col === 3) return 'A';
-    if (col === 5) return 'B';
-    if (col === 7) return 'C';
-    if (col === 9) return 'D';
-    return null;
+const getMoveToHallway = (amphipod: Amphipod, index: number): Move => {
+    return {
+        start: amphipod.position,
+        end: new Vector2(index, 0),
+        amphipod: amphipod.type,
+    };
 };
 
-const parseTiles = (input: string[]): { tiles: Tile[]; rooms: Room[]; hallway: Tile[] } => {
-    const tiles: Tile[] = [];
-    const hallway: Tile[] = [];
-    const rooms: Room[] = [
-        new Room([], 'A'),
-        new Room([], 'B'),
-        new Room([], 'C'),
-        new Room([], 'D'),
-    ];
+const getOutMoves = (house: House): Move[] => {
+    const outMoves: Move[] = [];
+    for (const room of house.rooms) {
+        // Find topmost Amphipod
+        const amphipod = getTopAmphipod(room);
+        if (amphipod === null) continue;
 
-    // Construct tiles and add to room or hallway
-    for (const [lineIndex, line] of input.entries()) {
-        for (const [spaceIndex, space] of line.split('').entries()) {
-            if (['A', 'B', 'C', 'D', '.'].includes(space)) {
-                const tile = new Tile(new Vector2(spaceIndex, lineIndex));
-                tiles.push(tile);
+        console.log(amphipod);
+        // Check if it can move out
+        // To the left
+        let moveLeftHallwayIndex = roomMap[room.roomType] - 1;
+        if (house.hallway[moveLeftHallwayIndex] === '.') {
+            outMoves.push(getMoveToHallway(amphipod, moveLeftHallwayIndex));
 
-                const tileRoom = rooms.find(
-                    (room) => room.type === getRoomType(lineIndex, spaceIndex),
-                );
+            moveLeftHallwayIndex--;
+            let nextTileLeft = house.hallway[moveLeftHallwayIndex];
+            while (nextTileLeft) {
+                if (nextTileLeft !== '.') break;
 
-                if (tileRoom) {
-                    tileRoom.tiles.push(tile);
+                if (Object.values(roomMap).includes(moveLeftHallwayIndex)) {
+                    moveLeftHallwayIndex--;
+                    continue;
+                }
+
+                outMoves.push(getMoveToHallway(amphipod, moveLeftHallwayIndex));
+
+                moveLeftHallwayIndex--;
+                nextTileLeft = house.hallway[moveLeftHallwayIndex];
+            }
+        }
+        // To The right
+        let moveRightHallwayIndex = roomMap[room.roomType] + 1;
+        if (house.hallway[moveRightHallwayIndex] === '.') {
+            outMoves.push(getMoveToHallway(amphipod, moveRightHallwayIndex));
+
+            moveRightHallwayIndex++;
+            let nextTileRight = house.hallway[moveRightHallwayIndex];
+            while (nextTileRight) {
+                if (nextTileRight !== '.') break;
+
+                if (Object.values(roomMap).includes(moveRightHallwayIndex)) {
+                    moveRightHallwayIndex++;
+                    continue;
+                }
+
+                outMoves.push(getMoveToHallway(amphipod, moveRightHallwayIndex));
+
+                moveRightHallwayIndex++;
+                nextTileRight = house.hallway[moveRightHallwayIndex];
+            }
+        }
+    }
+    return outMoves;
+};
+
+const getInMoves = (house: House): Move[] => {
+    const inMoves: Move[] = [];
+    for (const [tileIndex, hallwayTile] of house.hallway.entries()) {
+        if (hallwayTile === '.') continue;
+        if (
+            hallwayTile !== 'A' &&
+            hallwayTile !== 'B' &&
+            hallwayTile !== 'C' &&
+            hallwayTile !== 'D'
+        ) {
+            throw new Error('Not an amphipod type');
+        }
+
+        const amphipod = {
+            type: hallwayTile,
+            position: new Vector2(tileIndex, 1),
+        };
+
+        // Find room
+        const room = house.rooms.find((room) => room.roomType === amphipod.type);
+        if (!room) throw new Error(`Cannot find room of type ${amphipod.type}`);
+
+        // Find topmost Amphipod in room
+        const topAmphipod = getTopAmphipod(room);
+        if (topAmphipod !== null && topAmphipod.type !== amphipod.type) continue;
+
+        const endPosition = new Vector2(roomMap[room.roomType], room.tiles.length + 1);
+        if (topAmphipod) endPosition.setY(topAmphipod.position.y - 1);
+
+        // Check if way clear
+        const minX = Math.min(amphipod.position.x, endPosition.x);
+        const maxX = Math.max(amphipod.position.x, endPosition.x);
+        if (house.hallway.slice(minX, maxX).some((tile) => tile !== '.')) continue;
+
+        inMoves.push({ start: amphipod.position, end: endPosition, amphipod: hallwayTile });
+    }
+
+    return inMoves;
+};
+
+const isFinished = (house: House): boolean => {
+    for (const room of house.rooms) {
+        for (const tile of room.tiles) {
+            if (tile !== room.roomType) return false;
+        }
+    }
+    return true;
+};
+
+const doInMove = (house: House, move: Move): number => {
+    // Find amphipod type
+    const type = house.hallway[move.start.x];
+    if (type !== 'A' && type !== 'B' && type !== 'C' && type !== 'D') {
+        throw new Error('No amphipod of type');
+    }
+
+    // Find destination
+    const room = house.rooms.find((room) => room.roomType === type);
+    if (!room) throw new Error(`Cannot find room with type ${type}`);
+
+    // Move
+    house.hallway[move.start.x] = '.';
+    room.tiles[move.end.y - 2] = type;
+
+    // Return move cost
+    return move.start.manhattanDistanceTo(move.end) * moveCost(type);
+};
+
+const doOutMove = (house: House, move: Move): number => {
+    console.log(stringifyHouse(house));
+    console.log(move);
+    // Find room type
+    const roomType = Object.keys(roomMap).find((roomKey) => roomMap[roomKey] === move.start.x);
+    if (roomType !== 'A' && roomType !== 'B' && roomType !== 'C' && roomType !== 'D') {
+        throw new Error('No amphipod of type');
+    }
+
+    // Find start
+    const room = house.rooms.find((room) => room.roomType === roomType);
+    if (!room) throw new Error(`Cannot find room with type ${roomType}`);
+
+    // Find amphipod type
+    const type = room.tiles[move.start.y - 2];
+    if (type !== 'A' && type !== 'B' && type !== 'C' && type !== 'D') {
+        throw new Error('No amphipod of type');
+    }
+
+    // Move
+    room.tiles[move.start.y - 2] = '.';
+    house.hallway[move.end.x] = type;
+
+    // Return move cost
+    return move.start.manhattanDistanceTo(move.end) * moveCost(type);
+};
+
+const solve = (house: House): number => {
+    const pQueue: Heap<State> = new Heap((a: State, b: State) =>
+        b.totalEnergy > a.totalEnergy ? -1 : 1,
+    );
+    pQueue.push({ house, totalEnergy: 0 });
+    const seen: Set<string> = new Set();
+
+    // while (pQueue.size() > 0 && seen.size === 1) {
+    while (pQueue.size() > 0) {
+        const state = pQueue.pop();
+
+        console.log(pQueue.size(), state.totalEnergy);
+        if (state.totalEnergy === 40) console.log(pQueue.size(), stringifyHouse(state.house));
+        // console.log(pQueue.size(), state.totalEnergy);
+        console.log(stringifyHouse(state.house));
+        console.log(getOutMoves(house));
+        console.log(getInMoves(house));
+        if (!state) throw new Error('No next State to check');
+
+        if (isFinished(state.house)) return state.totalEnergy;
+
+        const doMoves: Move[] = [];
+        const inMoves = getInMoves(house);
+        const outMoves = getOutMoves(house);
+
+        if (inMoves.length > 0) doMoves.push(...inMoves);
+        else doMoves.push(...outMoves);
+
+        for (const move of doMoves) {
+            const newState = cloneDeep(state);
+
+            newState.totalEnergy +=
+                inMoves.length > 0
+                    ? doInMove(newState.house, move)
+                    : doOutMove(newState.house, move);
+
+            const stringified = stringifyHouse(newState.house);
+            if (!seen.has(stringified)) {
+                const allreadyIn = pQueue
+                    .toArray()
+                    .find(
+                        (queuedState: State) => stringifyHouse(queuedState.house) === stringified,
+                    );
+                if (!allreadyIn) {
+                    // Push to the queue if not allready in the queue
+                    pQueue.push(newState);
                 } else {
-                    hallway.push(tile);
+                    // console.log('allreadyin');
+                    // set lowest energy if allready in the queue
+                    if (allreadyIn.totalEnergy > newState.totalEnergy) {
+                        allreadyIn.totalEnergy = newState.totalEnergy;
+                    }
                 }
             }
         }
+        seen.add(stringifyHouse(house));
     }
+    const houses = pQueue
+        .toArray()
+        .sort((a: State, b: State) => (a.house < b.house ? -1 : 1))
+        .map((state) => state.house);
 
-    // Link tiles
-    for (const tile of tiles) {
-        for (const neighbour of getNeighbours(tile, tiles)) {
-            tile.addLink(neighbour);
-        }
-    }
+    console.log(uniqBy(houses, (house) => stringifyHouse(house)).length);
+    console.log(houses.length);
 
-    return { tiles, rooms, hallway };
+    return -1;
 };
 
-const parseAmphipods = (input: string[], tiles: Tile[]): Amphipod[] => {
-    const amphipods: Amphipod[] = [];
-    const typeCounts = {
-        A: 0,
-        B: 0,
-        C: 0,
-        D: 0,
-    };
-    for (const [lineIndex, line] of input.entries()) {
-        for (const [spaceIndex, space] of line.split('').entries()) {
-            if (space === 'A' || space === 'B' || space === 'C' || space == 'D') {
-                const tile = tiles.find((tile) =>
-                    tile.position.equals(new Vector2(spaceIndex, lineIndex)),
-                );
-                if (!tile) throw new Error('No tile found for amphipods');
-
-                typeCounts[space]++;
-                const id = `${space}${typeCounts[space]}`;
-
-                const amphipod = new Amphipod(id, space, tile);
-
-                amphipod.setPosition(tile);
-                amphipods.push(amphipod);
-            }
-        }
-    }
-
-    return amphipods;
-};
-
-const part1 = () => {};
-
-const part2 = () => {
+const part1 = () => {
     const input = getInput('2021', '23')
         .split('\n')
-        .filter((line) => line !== '');
+        .filter((line) => line !== '')
+        .join('\n');
+};
 
+const part2 = () => {
+    const input = addTwoLines(
+        getInput('2021', '23')
+            .split('\n')
+            .filter((line) => line !== ''),
+    ).join('\n');
+
+    const house = parseInput(input, 4);
+
+    solve(house);
+
+    console.log(input);
+
+    return;
+};
+
+const addTwoLines = (input: string[]): string[] => {
     const lastLines = input.splice(-2, 2);
     if (!lastLines) throw new Error('No lastLine');
 
     input.push('  #D#C#B#A#', '  #D#B#A#C#', ...lastLines);
-
-    console.log(input.join('\n'));
-    const { tiles, rooms, hallway } = parseTiles(input);
-    const amphipods = parseAmphipods(input, tiles);
-
-    const house = new House(amphipods, hallway, rooms);
-
-    return house.solve();
+    return input;
 };
 
 console.log(`Solution 1: ${part1()}`);
