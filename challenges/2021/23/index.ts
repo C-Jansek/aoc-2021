@@ -241,10 +241,14 @@ const doOutMove = (house: House, move: Move): number => {
 };
 
 const minRemainingEnergy = (house: House): number => {
-    // TODO: calc min remaining energy
+    // TODO: this one doesn't work so well
     let totalEnergy = 0;
     const inRooms: { [key: string]: number } = {};
     for (const room of house.rooms) {
+        if (room.tiles.some((tile) => tile !== room.roomType && tile !== '.')) {
+            inRooms[room.roomType] = 0;
+            continue;
+        }
         inRooms[room.roomType] = room.tiles.filter((tile) => tile === room.roomType).length;
     }
 
@@ -303,7 +307,7 @@ const solve = (house: House, upperBound: number): number => {
 
         console.log(pQueue.size(), state.totalEnergy, minRemainingEnergy(state.house));
         // console.log('\n\n');
-        console.log(stringifyHouse(state.house));
+        // console.log(stringifyHouse(state.house));
         // console.log(state.house);
         // console.log(state.house.rooms);
         // console.log(getOutMoves(state.house));
@@ -390,8 +394,10 @@ const part2 = () => {
     // });
 
     // solve(house, 49076);
-    // solve(house, 48676);
-    solve(house, 44300);
+    solve(house, 48676);
+    // solve(house, 44300);
+
+    // console.log(minRemainingEnergy(house));
 
     console.log(input);
 
