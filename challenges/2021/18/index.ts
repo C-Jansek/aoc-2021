@@ -1,5 +1,4 @@
-import { assert } from 'console';
-import _ from 'lodash';
+import _, { isUndefined } from 'lodash';
 import getInput from '../../../utils/getInput';
 
 const addSnailfishNumbers = (a: string, b: string): string => {
@@ -30,10 +29,14 @@ const reduceSnailfishNumber = (combined: string): string => {
     while (maxDepth(reduced) > 4 || maxNumber(reduced) > 9) {
         if (maxDepth(reduced) > 4) {
             reduced = explodeSnailfishNumber(reduced);
-        } else if (maxNumber(reduced) > 9) {
+            continue;
+        }
+
+        if (maxNumber(reduced) > 9) {
             reduced = splitSnailfishNumber(reduced);
         }
     }
+
     return reduced;
 };
 
@@ -67,83 +70,130 @@ const splitSnailfishNumber = (combined: string): string => {
     return `[${first},${split}]`;
 };
 
-const findExplodeParts = (combined: string) => {
+const getExplodingSnailfishNumber = (
+    combined: string,
+): {
+    explodeStart: number;
+    explodeEnd: number;
+    explodePair: string[];
+} => {
     let depth = 0;
     let explodeStart = 0;
-    let first: any;
-    let second: any;
-    let explodeEnd: any;
+    const explodePair: string[] = [];
+    let explodeEnd = 0;
+
     for (const char of combined) {
         if (char === '[') depth++;
         else if (char === ']') depth--;
         if (depth === 5) {
-            first = _.get(combined.slice(explodeStart).match(/\[(\d+),/g), 0)?.slice(1, -1);
-            second = _.get(combined.slice(explodeStart).match(/,(\d+)]/g), 0)?.slice(1, -1);
+            const first = _.get(combined.slice(explodeStart).match(/\[(\d+),/g), 0)?.slice(1, -1);
+            const second = _.get(combined.slice(explodeStart).match(/,(\d+)]/g), 0)?.slice(1, -1);
+            if (isUndefined(first) || isUndefined(second)) throw new Error('Cannot find pair');
+
+            explodePair.push(first, second);
             explodeEnd = explodeStart + combined.slice(explodeStart).indexOf(']') + 1;
-            break;
+
+            return {
+                explodeStart,
+                explodeEnd,
+                explodePair,
+            };
         }
         explodeStart++;
     }
-    return [first, second, explodeStart, explodeEnd];
+
+    throw new Error('Cannot explode Snailfish number');
 };
 
-const explodeSnailfishNumber = (combined: string): string => {
-    const [first, second, explodeStart, explodeEnd] = findExplodeParts(combined);
-
-    // Go to the Left
+const getLeftOfExplodingSnailfishNumber = (
+    combined: string,
+    explodeStart: number,
+): {
+    leftStart: number | undefined;
+    leftEnd: number;
+} => {
     const reversedBegin = combined
         .slice(0, explodeStart)
         .split('')
         .reverse()
         .join('');
-    let leftCharEnd = 0;
-    let leftCharStart;
+    let leftEnd = 0;
+    let leftStart;
     let leftIndex = explodeStart;
 
     for (const char of reversedBegin) {
         if (!['[', ']', ','].includes(char)) {
-            if (!leftCharEnd) {
-                leftCharEnd = leftIndex;
+            if (!leftEnd) {
+                leftEnd = leftIndex;
             }
-        } else if (leftCharEnd) {
-            leftCharStart = leftIndex;
+        } else if (leftEnd) {
+            leftStart = leftIndex;
             break;
         }
         leftIndex--;
     }
 
-    // Go to the right
-    let rightCharEnd;
-    let rightCharStart;
+    return {
+        leftStart,
+        leftEnd,
+    };
+};
+
+const getRightOfExplodingSnailfishNumber = (
+    combined: string,
+    explodeEnd: number,
+): {
+    rightStart: number | undefined;
+    rightEnd: number | undefined;
+} => {
+    let rightStart;
+    let rightEnd;
     let rightIndex = explodeEnd + 1;
     for (const char of combined.slice(explodeEnd + 1)) {
         if (!['[', ']', ','].includes(char)) {
-            if (!rightCharStart) {
-                rightCharStart = rightIndex;
+            if (!rightStart) {
+                rightStart = rightIndex;
             }
-        } else if (rightCharStart) {
-            rightCharEnd = rightIndex;
+        } else if (rightStart) {
+            rightEnd = rightIndex;
             break;
         }
         rightIndex++;
     }
 
-    const closestLeft = combined.slice(leftCharEnd, explodeStart);
-    const closestRight = combined.slice(explodeEnd, rightCharStart);
-    const middle = `${closestLeft}0${closestRight}`;
+    return {
+        rightStart,
+        rightEnd,
+    };
+};
 
-    let output = '';
-    if (leftCharStart) {
-        output += combined.slice(0, leftCharStart);
-        output += `${Number(combined.slice(leftCharStart, leftCharEnd)) + Number(first)}`;
-    }
-    output += middle;
-    if (rightCharEnd) {
-        output += `${Number(combined.slice(rightCharStart, rightCharEnd)) + Number(second)}`;
-        output += combined.slice(rightCharEnd);
+const explodeSnailfishNumber = (combined: string): string => {
+    const { explodeStart, explodeEnd, explodePair } = getExplodingSnailfishNumber(combined);
+
+    // Go to the Left
+    const { leftStart, leftEnd } = getLeftOfExplodingSnailfishNumber(combined, explodeStart);
+    let left = '';
+    if (leftStart) {
+        left =
+            combined.slice(0, leftStart) +
+            (Number(combined.slice(leftStart, leftEnd)) + Number(explodePair[0])).toString();
     }
 
-    return output;
+    // Go to the right
+    const { rightStart, rightEnd } = getRightOfExplodingSnailfishNumber(combined, explodeEnd);
+    let right = '';
+    if (rightEnd) {
+        right =
+            (Number(combined.slice(rightStart, rightEnd)) + Number(explodePair[1])).toString() +
+            combined.slice(rightEnd);
+    }
+
+    const middle =
+        combined.slice(leftEnd, explodeStart).toString() +
+        '0' +
+        combined.slice(explodeEnd, rightStart).toString();
+
+    return left + middle + right;
 };
 
 const calculateMagnitude = (combined: string): number => {
