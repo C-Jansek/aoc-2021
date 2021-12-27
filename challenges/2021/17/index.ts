@@ -1,4 +1,3 @@
-import { max, over } from 'lodash';
 import { Vector2 } from 'three';
 import getInput from '../../../utils/getInput';
 
@@ -164,6 +163,3 @@ const part2 = () => {
 
 console.log(`Solution 1: ${part1()}`);
 console.log(`Solution 2: ${part2()}`);
-
-// Wrong:
-// 5244
